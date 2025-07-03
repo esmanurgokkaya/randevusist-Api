@@ -1,0 +1,65 @@
+const jwt = require('jsonwebtoken');
+// en yeni(2023de) ve önerilen argon2           diğer çok kullanılan scrypt        bcrypt yaygın ve eski yeni projeşerde az terzih edilmeye başlamış 
+const argon2 = require('argon2');
+const {createUser, findUserByEmail} = require('../models/userModels');
+
+const register = async (req, res) =>{
+    const { username, email, password } = req.body;
+    if(!username || !email || !password){
+        return res.status(400).json({ message: 'eksik alan var'});
+    }
+    try{
+        const hashedPassword = await argon2.hash(password);
+        createUser(username, email, hashedPassword, (err, result) => {
+            if(err) return res.status(500).json({ message: 'kullanıcı oluşuturlamadı', error: err});
+            res.status(201).json({message : 'kullanıcı oluşturuldu', userID: result.insetId})
+        });
+    }
+    catch (error){
+        res.status(500).json({ message: 'Sunucu hatası',error: error.message || error });
+    }
+
+};
+
+const login = async (req, res) =>{
+    const {email, password} = req.body;
+      if (!email || !password) {
+       return res.status(400).json({ message: 'Eksik alan var' });
+    }
+
+    try{
+        findUserByEmail(email, async (err, result) => {
+            if(err) return res.status(500).json({ message: 'veritabanı hatası', error: err});
+            if(result.length ===0 ) return res.status(404).json({mesagge : 'kullanıcı bulunmadı'});
+            const isValid = await argon2.verify(result[0].password, password) ;
+            if(!isValid) return res.status(400).json({message : 'şifre yanlış'});
+
+            const token = jwt.sign(
+                { id: result[0].is}, 
+                process.env.JWT_SECRET,
+                { expiresIn: '1h'}
+            );
+
+
+            res.json({
+                mesagge : 'giriş başarılı',
+                token,
+                user:{
+                    id : result[0].id,
+                    email : result[0].email,
+                    password : result[0].password
+                }
+            });
+        });
+    }
+    catch (error){
+        res.status(500).json({ message: 'Sunucu hatası',error: error.message || error });
+    }
+
+};
+
+
+module.exports={
+    register,
+    login
+};
