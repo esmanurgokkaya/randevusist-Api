@@ -1,55 +1,66 @@
 const db = require('../config/db.js');
 
 // Yeni rezervasyon oluştur
-const createReservation = (room_id, user_id, start_datetime, end_datetime, callback) => {
+const createReservation = async (room_id, user_id, start_datetime, end_datetime) => {
   const query = `
     INSERT INTO availability_calendar (room_id, users, start_datetime, end_datetime)
     VALUES (?, JSON_ARRAY(?), ?, ?)
   `;
-  db.query(query, [room_id, user_id, start_datetime, end_datetime], callback);
+  const [result] = await db.query(query, [room_id, user_id, start_datetime, end_datetime]);
+  return result;
 };
 
 // Zaman çakışması olup olmadığını kontrol et
-const checkConflict = (room_id, start_datetime, end_datetime, callback) => {
+const checkConflict = async (room_id) => {
   const query = `
-    SELECT * FROM availability_calendar 
-    WHERE room_id = ? 
-      AND start_datetime < ? 
-      AND end_datetime > ?
+    SELECT id FROM availability_calendar 
+    WHERE room_id = ?
+    LIMIT 1
   `;
-  db.query(query, [room_id, end_datetime, start_datetime], callback);
+
+  console.log("⚡ [checkConflict] Basit ID kontrolü yapılıyor...");
+  const [results] = await db.query(query, [room_id]);
+  console.log("✅ [checkConflict] SQL sonuç döndü:", results);
+  return results;
 };
 
 // Belirli kullanıcıya ait rezervasyonları getir
-const getReservationsByUser = (user_id, callback) => {
+const getReservationsByUser = async (user_id) => {
   const query = `
     SELECT * FROM availability_calendar 
     WHERE JSON_CONTAINS(users, JSON_QUOTE(?))
     ORDER BY start_datetime DESC
   `;
-  db.query(query, [user_id.toString()], callback);
+  const [results] = await db.query(query, [user_id.toString()]);
+  return results;
 };
 
-// ID'ye göre rezervasyon getir
-const getReservationById = (id, callback) => {
-  const query = `SELECT * FROM availability_calendar WHERE id = ?`;
-  db.query(query, [id], callback);
+const getReservationById = async (user_id) => {
+  const query = `
+    SELECT * FROM availability_calendar 
+    WHERE JSON_CONTAINS(users, CAST(? AS JSON))
+    LIMIT 1
+  `;
+  const [results] = await db.query(query, [user_id]);
+  return results;
 };
 
 // Rezervasyonu güncelle
-const updateReservationById = (id, start_datetime, end_datetime, callback) => {
+const updateReservationById = async (id, start_datetime, end_datetime) => {
   const query = `
     UPDATE availability_calendar 
     SET start_datetime = ?, end_datetime = ? 
     WHERE id = ?
   `;
-  db.query(query, [start_datetime, end_datetime, id], callback);
+  const [result] = await db.query(query, [start_datetime, end_datetime, id]);
+  return result;
 };
 
 // Rezervasyon sil
-const deleteReservationById = (id, callback) => {
+const deleteReservationById = async (id) => {
   const query = `DELETE FROM availability_calendar WHERE id = ?`;
-  db.query(query, [id], callback);
+  const [result] = await db.query(query, [id]);
+  return result;
 };
 
 module.exports = {
