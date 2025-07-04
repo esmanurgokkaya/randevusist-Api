@@ -1,65 +1,122 @@
+// src/controller/authController.js
 const jwt = require('jsonwebtoken');
-// en yeni(2023de) ve önerilen argon2           diğer çok kullanılan scrypt        bcrypt yaygın ve eski yeni projeşerde az terzih edilmeye başlamış 
 const argon2 = require('argon2');
-const {createUser, findUserByEmail} = require('../models/userModels');
+const { createUser, findUserByEmail } = require('../models/userModels');
+const z = require('zod'); // Zod kütüphanesini import ediyoruz
 
-const register = async (req, res) =>{
-    const { username, email, password } = req.body;
-    if(!username || !email || !password){
-        return res.status(400).json({ message: 'eksik alan var'});
-    }
-    try{
+// --- Zod Şemalarını Tanımlama ---
+
+// Kayıt olma isteği için doğrulama şeması
+const registerSchema = z.object({
+    username: z.string()
+              .min(3, { message: "Kullanıcı adı en az 3 karakter olmalı." })
+              .max(50, { message: "Kullanıcı adı en fazla 50 karakter olmalı." }),
+    email: z.string()
+            .email({ message: "Geçerli bir e-posta adresi girin." })
+            .max(100, { message: "E-posta en fazla 100 karakter olmalı." }),
+    password: z.string()
+               .min(6, { message: "Parola en az 6 karakter olmalı." })
+               .max(255, { message: "Parola çok uzun." })
+               .regex(/[a-z]/, { message: "Parola en az bir küçük harf içermeli." })
+               .regex(/[A-Z]/, { message: "Parola en az bir büyük harf içermeli." })
+               .regex(/[0-9]/, { message: "Parola en az bir rakam içermeli." })
+               .regex(/[^a-zA-Z0-9]/, { message: "Parola en az bir özel karakter içermeli (örn: !, @, #)." }),
+});
+
+// Giriş yapma isteği için doğrulama şeması (username isteğe bağlı, email yeterli olabilir)
+const loginSchema = z.object({
+    email: z.string().email({ message: "Geçerli bir e-posta adresi girin." }),
+    password: z.string().min(1, { message: "Parola boş bırakılamaz." }), // Parola sadece boş olmamasını kontrol ediyoruz, karmaşıklık kontrolü login'de genelde yapılmaz
+});
+
+// --- Controller Fonksiyonları ---
+
+const register = async (req, res) => {
+    try {
+        // Zod ile gelen isteği doğrula
+        const { username, email, password } = registerSchema.parse(req.body);
+
+        // Eğer buraya gelinirse, veri geçerlidir. İşleme devam et.
         const hashedPassword = await argon2.hash(password);
-        createUser(username, email, hashedPassword, (err, result) => {
-            if(err) return res.status(500).json({ message: 'kullanıcı oluşuturlamadı', error: err});
-            res.status(201).json({message : 'kullanıcı oluşturuldu', userID: result.insetId})
-        });
-    }
-    catch (error){
-        res.status(500).json({ message: 'Sunucu hatası',error: error.message || error });
-    }
 
+        createUser(username, email, hashedPassword, (err, result) => {
+            if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(409).json({ message: 'Bu e-posta adresi zaten kullanılıyor.' });
+                }
+                console.error("Kullanıcı oluşturulurken veritabanı hatası:", err);
+                return res.status(500).json({ message: 'Kullanıcı oluşturulamadı', error: err.message });
+            }
+            res.status(201).json({ message: 'Kullanıcı başarıyla oluşturuldu.', userID: result.insertId });
+        });
+
+    } catch (error) {
+        // Eğer Zod doğrulaması başarısız olursa, bir ZodError yakalarız
+        if (error instanceof z.ZodError) {
+            // ZodError'ın detaylarını alıp kullanıcıya döndürüyoruz
+            return res.status(400).json({
+                message: 'Doğrulama hatası.',
+                errors: error.errors.map(err => ({ path: err.path.join('.'), message: err.message }))
+            });
+        }
+        // Diğer beklenmedik hataları ele al
+        console.error("Kayıt sırasında beklenmeyen hata:", error);
+        res.status(500).json({ message: 'Sunucu hatası.', error: error.message || error });
+    }
 };
 
-const login = async (req, res) =>{
-    const {email, password} = req.body;
-      if (!email || !password) {
-       return res.status(400).json({ message: 'Eksik alan var' });
-    }
+const login = async (req, res) => {
+    try {
+        // Zod ile gelen isteği doğrula
+        const { email, password } = loginSchema.parse(req.body);
 
-    try{
+        // Eğer buraya gelinirse, veri geçerlidir. İşleme devam et.
         findUserByEmail(email, async (err, result) => {
-            if(err) return res.status(500).json({ message: 'veritabanı hatası', error: err});
-            if(result.length ===0 ) return res.status(404).json({mesagge : 'kullanıcı bulunmadı'});
-            const isValid = await argon2.verify(result[0].password, password) ;
-            if(!isValid) return res.status(400).json({message : 'şifre yanlış'});
+            if (err) {
+                console.error("Giriş sırasında veritabanı hatası:", err);
+                return res.status(500).json({ message: 'Veritabanı hatası.', error: err.message });
+            }
+            if (result.length === 0) {
+                return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+            }
+
+            const isValid = await argon2.verify(result[0].password, password);
+            if (!isValid) {
+                return res.status(400).json({ message: 'E-posta veya parola hatalı.' }); // Güvenlik için spesifik "şifre yanlış" yerine genel mesaj
+            }
 
             const token = jwt.sign(
-                { id: result[0].is}, 
+                { id: result[0].id },
                 process.env.JWT_SECRET,
-                { expiresIn: '1h'}
+                { expiresIn: '1h' }
             );
 
-
             res.json({
-                mesagge : 'giriş başarılı',
+                message: 'Giriş başarılı.',
                 token,
-                user:{
-                    id : result[0].id,
-                    email : result[0].email,
-                    password : result[0].password
+                user: {
+                    id: result[0].id,
+                    username: result[0].username, // Kullanıcı adını da ekleyebiliriz
+                    email: result[0].email,
                 }
             });
         });
-    }
-    catch (error){
-        res.status(500).json({ message: 'Sunucu hatası',error: error.message || error });
-    }
 
+    } catch (error) {
+        // Eğer Zod doğrulaması başarısız olursa
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                message: 'Doğrulama hatası.',
+                errors: error.errors.map(err => ({ path: err.path.join('.'), message: err.message }))
+            });
+        }
+        // Diğer beklenmedik hataları ele al
+        console.error("Giriş sırasında beklenmeyen hata:", error);
+        res.status(500).json({ message: 'Sunucu hatası.', error: error.message || error });
+    }
 };
 
-
-module.exports={
+module.exports = {
     register,
     login
 };
