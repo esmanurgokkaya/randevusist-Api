@@ -1,52 +1,52 @@
 const db = require('../config/db.js');
 
-const createUser = (username, email, password, callback) => {
-    const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
-    db.query(query, [username, email, password], callback);
-
+// Kullanıcı oluştur
+const createUser = async (username, email, password) => {
+  const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+  const [result] = await db.query(query, [username, email, password]);
+  return result;
 };
 
-// email ile 
-
-const findUserByEmail = (email, callback) => {
-    const query = 'SELECT * FROM users WHERE email = ?';
-    db.query(query, [email], callback);
+// E-posta ile kullanıcıyı bul
+const findUserByEmail = async (email) => {
+  const query = 'SELECT * FROM users WHERE email = ?';
+  const [rows] = await db.query(query, [email]);
+  return rows;
 };
 
-// id ile 
-const findUserById =  (id, callback) => {
-    const query = 'SELECT * FROM users WHERE id = ?';
-    db.query(query, [id], callback);
-};
-// kullanıcı adı ile
-// güncelle
-
-// kullanıcıyı id ile silme
-const deleteUserById = (id, callback) => {
-    const query = 'DELETE FROM users WHERE id = ?';
-    db.query(query, [id], callback);
+// ID ile kullanıcıyı bul
+const findUserById = async (id) => {
+  const query = 'SELECT * FROM users WHERE id = ?';
+  const [rows] = await db.query(query, [id]);
+  return rows;
 };
 
-// kullanıcı bilgileri güncelleme id ile 
+// ID ile kullanıcıyı sil
+const deleteUserById = async (id) => {
+  const query = 'DELETE FROM users WHERE id = ?';
+  const [result] = await db.query(query, [id]);
+  return result;
+};
 
-const updateUserById = (id, username, email, password, callback) => {
+// ID ile kullanıcı bilgilerini güncelle
+const updateUserById = async (id, username, email, password) => {
   const query = 'UPDATE users SET username = ?, email = ?, password = ? WHERE id = ?';
-  db.query(query, [username, email, password, id], callback);
+  const [result] = await db.query(query, [username, email, password, id]);
+  return result;
 };
 
-
-const isEmailTakenByAnotherUser = (email, currentUserId, callback) => {
+// Belirli bir e-posta başka bir kullanıcıya ait mi?
+const isEmailTakenByAnotherUser = async (email, currentUserId) => {
   const query = 'SELECT * FROM users WHERE email = ? AND id != ?';
-  db.query(query, [email, currentUserId], callback);
+  const [rows] = await db.query(query, [email, currentUserId]);
+  return rows;
 };
-
-
 
 module.exports = {
-    createUser,
-    findUserByEmail,
-    findUserById,
-    deleteUserById,
-    updateUserById,
-    isEmailTakenByAnotherUser
+  createUser,
+  findUserByEmail,
+  findUserById,
+  deleteUserById,
+  updateUserById,
+  isEmailTakenByAnotherUser
 };

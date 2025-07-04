@@ -1,4 +1,3 @@
-// Gerekli modelleri ve bağımlılıkları içe aktar
 const {
   findUserById,
   deleteUserById,
@@ -22,23 +21,17 @@ const updateUserSchema = z.object({
  * @route  GET /api/user/profile
  * @access Protected
  */
-const getUserProfile = (req, res) => {
+const getUserProfile = async (req, res) => {
   const userId = req.auth?.id;
-
   if (!userId) return res.status(401).json({ message: 'Yetkisiz.' });
 
-  findUserById(userId, (err, userDetails) => {
-    if (err) {
-      console.error("Profil bilgileri çekilirken veritabanı hatası:", err);
-      return res.status(500).json({ message: 'Sunucu hatası.' });
-    }
-
-    if (!userDetails?.length) {
+  try {
+    const results = await findUserById(userId);
+    if (!results?.length) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
-    const user = userDetails[0];
-
+    const user = results[0];
     return res.json({
       message: 'Kullanıcı profili başarıyla getirildi.',
       user: {
@@ -47,7 +40,10 @@ const getUserProfile = (req, res) => {
         email: user.email
       }
     });
-  });
+  } catch (err) {
+    console.error("Profil bilgileri çekilirken veritabanı hatası:", err);
+    return res.status(500).json({ message: 'Sunucu hatası.' });
+  }
 };
 
 /**
@@ -57,22 +53,20 @@ const getUserProfile = (req, res) => {
  */
 const deleteUserProfile = async (req, res) => {
   const userId = req.auth?.id;
-
   if (!userId) return res.status(401).json({ message: 'Yetkisiz.' });
 
-  findUserById(userId, (err, results) => {
-    if (err) return res.status(500).json({ message: 'Sunucu hatası' });
-
+  try {
+    const results = await findUserById(userId);
     if (!results?.length) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
 
-    deleteUserById(userId, (err) => {
-      if (err) return res.status(500).json({ message: 'Hesap silinemedi' });
-
-      return res.json({ message: 'Hesap başarıyla silindi' });
-    });
-  });
+    await deleteUserById(userId);
+    return res.json({ message: 'Hesap başarıyla silindi' });
+  } catch (err) {
+    console.error("Hesap silme hatası:", err);
+    return res.status(500).json({ message: 'Hesap silinemedi' });
+  }
 };
 
 /**
@@ -86,7 +80,6 @@ const updateUserProfile = async (req, res) => {
 
   if (!userId) return res.status(401).json({ message: 'Yetkisiz.' });
 
-  // Gelen veriyi Zod ile doğrula
   const validation = updateUserSchema.safeParse(updatedData);
   if (!validation.success) {
     return res.status(400).json({
@@ -95,90 +88,50 @@ const updateUserProfile = async (req, res) => {
     });
   }
 
-  // Kullanıcıyı veritabanından bul
-  findUserById(userId, async (err, results) => {
-    if (err) return res.status(500).json({ message: 'Veritabanı hatası' });
+  try {
+    const results = await findUserById(userId);
     if (!results?.length) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
 
     const user = results[0];
+    let passwordToSave = user.password;
 
-    // Güncelleme işlemini gerçekleştiren yardımcı fonksiyon
-    const proceed = async () => {
-      try {
-        // 1. Başlangıçta güncellenecek şifre mevcut kullanıcı şifresi olarak belirlenir
-        let passwordToSave = user.password;
-
-        // 2. Kullanıcı şifre değiştirmek istiyorsa bu blok çalışır
-        if (updatedData.oldPassword || updatedData.newPassword) {
-
-          // 3. Eğer sadece biri geldiyse (ya eski ya yeni) eksik veri hatası ver
-          if (!updatedData.oldPassword || !updatedData.newPassword) {
-            return res.status(400).json({
-              message: 'Parola değiştirmek için hem eski hem yeni parola gereklidir.'
-            });
-          }
-
-          // 4. Kullanıcının eski şifresi doğru mu? Argon2 hash verify işlemi yapılır
-          const match = await argon2.verify(user.password, updatedData.oldPassword);
-
-          // 5. Şifre eşleşmezse yetkisiz hatası döner
-          if (!match) {
-            return res.status(401).json({
-              message: 'Eski parola hatalı.'
-            });
-          }
-
-          // 6. Yeni şifre hash’lenerek kaydedilmek üzere hazırlanır
-          passwordToSave = await argon2.hash(updatedData.newPassword);
-        }
-
-        // 7. Kullanıcı verilerini veritabanında güncelle
-        //    Eğer kullanıcı yeni bir username veya email verdiyse onu kullan, yoksa mevcut olanı bırak
-        updateUserById(
-          userId,
-          updatedData.username || user.username,
-          updatedData.email || user.email,
-          passwordToSave, // Bu şifre ya aynı kaldı ya da yeni hash’lendi
-          (err) => {
-            if (err) {
-              return res.status(500).json({
-                message: 'Güncelleme sırasında hata oluştu.'
-              });
-            }
-
-            // 8. Başarıyla güncellendiğinde kullanıcıya bilgi verilir
-            return res.json({
-              message: 'Profil başarıyla güncellendi.'
-            });
-          }
-        );
-
-      } catch (e) {
-        // 9. Argon2, async işlemler ya da veritabanı hatası gibi durumlarda burası çalışır
-        console.error(e);
-        return res.status(500).json({
-          message: 'Parola işlemlerinde hata oluştu.'
+    if (updatedData.oldPassword || updatedData.newPassword) {
+      if (!updatedData.oldPassword || !updatedData.newPassword) {
+        return res.status(400).json({
+          message: 'Parola değiştirmek için hem eski hem yeni parola gereklidir.'
         });
       }
-    };
 
+      const match = await argon2.verify(user.password, updatedData.oldPassword);
+      if (!match) {
+        return res.status(401).json({ message: 'Eski parola hatalı.' });
+      }
 
-    // E-posta değişikliği varsa, çakışma kontrolü yap
-    if (updatedData.email && updatedData.email !== user.email) {
-      isEmailTakenByAnotherUser(updatedData.email, userId, (err, existing) => {
-        if (err) return res.status(500).json({ message: 'Veritabanı hatası' });
-        if (existing.length > 0) {
-          return res.status(409).json({ message: 'Bu e-posta başka bir kullanıcıya ait.' });
-        }
-        proceed();
-      });
-    } else {
-      proceed();
+      passwordToSave = await argon2.hash(updatedData.newPassword);
     }
-  });
+
+    if (updatedData.email && updatedData.email !== user.email) {
+      const existing = await isEmailTakenByAnotherUser(updatedData.email, userId);
+      if (existing.length > 0) {
+        return res.status(409).json({ message: 'Bu e-posta başka bir kullanıcıya ait.' });
+      }
+    }
+
+    await updateUserById(
+      userId,
+      updatedData.username || user.username,
+      updatedData.email || user.email,
+      passwordToSave
+    );
+
+    return res.json({ message: 'Profil başarıyla güncellendi.' });
+
+  } catch (err) {
+    console.error("Güncelleme hatası:", err);
+    return res.status(500).json({ message: 'Parola işlemlerinde ya da güncellemede hata oluştu.' });
+  }
 };
 
-// Controller'ları dışa aktar
 module.exports = {
   getUserProfile,
   deleteUserProfile,

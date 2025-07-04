@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const authRoutes = require('./src/routes/authRoute');
 const userRoutes = require('./src/routes/userRoute');
+const reservationRoutes = require('./src/routes/reservationRoute');
 
 const { handleAuthError  } = require('./src/middleware/authMiddleware');
 
@@ -20,6 +21,7 @@ app.use(cors({
 }));
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
+app.use('/reservation', reservationRoutes);
 
 app.use(handleAuthError);
 app.listen(PORT, () => {
