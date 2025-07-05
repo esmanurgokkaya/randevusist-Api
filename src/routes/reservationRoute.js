@@ -4,17 +4,20 @@ const {
   getMyReservations,
   getReservationById,
   updateReservation,
-  deleteReservation
+  deleteReservation,
+  searchReservationsController
 } = require('../controller/reservationController');
 
 const { token } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.post('/create-reservation', token, createReservation);
-router.get('/my-reservations', token, getMyReservations);
-router.get('/reservation/:id', token, getReservationById);
-router.put('/update-reservation/:id', token, updateReservation);
-router.delete('/delete-reservation/:id', token, deleteReservation);
+// 📅 Rezervasyon işlemleri
+router.post('/reservations', token, createReservation);                // Yeni rezervasyon oluştur
+router.get('/reservations/me', token, getMyReservations);             // Kendi rezervasyonlarını listele
+router.get('/reservations/:id', token, getReservationById);           // Belirli rezervasyon bilgisi
+router.put('/reservations/:id', token, updateReservation);            // Güncelleme
+router.delete('/reservations/:id', token, deleteReservation);         // Silme
+router.get('/reservations', token, searchReservationsController);     // Filtreli listeleme
 
 module.exports = router;

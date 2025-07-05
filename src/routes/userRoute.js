@@ -1,13 +1,17 @@
 const express = require('express');
-const { getUserProfile, deleteUserProfile, updateUserProfile} = require('../controller/userController');
+const {
+  getUserProfile,
+  deleteUserProfile,
+  updateUserProfile
+} = require('../controller/userController');
 
 const { token } = require('../middleware/authMiddleware');
+
 const router = express.Router();
 
-router.get('/profile', token, getUserProfile);
-router.delete('/profile/delete', token, deleteUserProfile);
-router.put('/profile/update', token, deleteUserProfile);
-
-
+// 👤 Kullanıcı kendi profil bilgilerini görüntüleyebilir, güncelleyebilir, silebilir
+router.get('/me', token, getUserProfile);
+router.put('/me', token, updateUserProfile);
+router.delete('/me', token, deleteUserProfile);
 
 module.exports = router;

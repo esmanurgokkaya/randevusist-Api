@@ -1,21 +1,17 @@
 /**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
+ * Odalar tablosunu oluşturur.
+ * Alanlar: id, name, cover, status, timestamps
  */
 exports.up = function(knex) {
-  return knex.schema.createTable('rooms', function (table) {
-    table.increments('id').primary();
-    table.string('name', 100).notNullable();
-    table.string('cover'); // görsel URL
-    table.enum('status', ['available', 'maintenance', 'closed']).defaultTo('available');
+  return knex.schema.createTable('rooms', function(table) {
+    table.increments('id').primary(); // Oda ID
+    table.string('name').notNullable(); // Oda adı
+    table.string('cover').nullable(); // Görsel yolu
+    table.enu('status', ['available', 'maintenance', 'closed']).defaultTo('available'); // Oda durumu
     table.timestamps(true, true);
   });
 };
 
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
- */
 exports.down = function(knex) {
-  return knex.schema.dropTable('rooms');
+  return knex.schema.dropTableIfExists('rooms');
 };

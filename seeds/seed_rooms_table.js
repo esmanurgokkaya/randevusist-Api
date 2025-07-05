@@ -1,13 +1,12 @@
 /**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
+ * Örnek oda verileri ekler.
  */
 exports.seed = async function(knex) {
   await knex('rooms').del();
 
   await knex('rooms').insert([
-    { name: 'Toplantı Odası 1', cover: 'room1.jpg', status: 'available' },
-    { name: 'Okuma Salonu', cover: 'room2.jpg', status: 'maintenance' },
-    { name: 'Bilgisayar Odası', cover: 'room3.jpg', status: 'closed' }
+    { name: 'Oda 101', cover: '/images/oda101.jpg', status: 'available' },
+    { name: 'Toplantı Salonu', cover: '/images/toplanti.jpg', status: 'maintenance' },
+    { name: 'Konferans Odası', cover: '/images/konferans.jpg', status: 'closed' }
   ]);
 };

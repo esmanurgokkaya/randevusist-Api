@@ -1,23 +1,21 @@
-// 
-const { expressjwt } = require("express-jwt")
+const { expressjwt: jwt } = require("express-jwt");
 
-const secret = process.env.JWT_SECRET;
-
-const token = expressjwt({
-    secret : secret,
-     algorithms: ['HS256'],
-
+// Access token kontrolü
+const verifyToken = jwt({
+  secret: process.env.JWT_SECRET,
+  algorithms: ["HS256"],
+  requestProperty: "auth",
 });
 
+// Hataları yakala
 const handleAuthError = (err, req, res, next) => {
-    if (err.name === 'UnauthorizedError') {
-        // Eğer hata UnauthorizedError ise (token yok veya geçersiz)
-        return res.status(401).json({ message: 'Erişim reddedildi. Geçersiz veya süresi dolmuş token.', error: err.message });
-    }
-    next(err);
+  if (err.name === "UnauthorizedError") {
+    return res.status(401).json({ message: "Yetkisiz erişim." });
+  }
+  next(err);
 };
 
 module.exports = {
-    token,
-    handleAuthError
+  verifyToken,
+  handleAuthError,
 };

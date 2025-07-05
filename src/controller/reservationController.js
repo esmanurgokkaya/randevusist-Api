@@ -1,4 +1,4 @@
-// Veritabanı modelleri (SQL işlemleri bu dosyadan çağrılır)
+// 📦 Gerekli bağımlılıkları alıyoruz
 const {
   createReservation,
   checkConflict,
@@ -6,168 +6,214 @@ const {
   getReservationById: getResById,
   updateReservationById,
   deleteReservationById,
+  searchReservations
 } = require("../models/reservationModel");
 
-// Giriş (Auth) sonrası gelen body verilerini doğrulamak için Zod kullanıyoruz
+const { findUserById } = require("../models/userModels");
+const sendMail = require("../utils/mailService");
 const z = require("zod");
 
-// 📌 Yeni rezervasyon verisi için doğrulama şeması
+// 🧪 Yeni rezervasyon için veri doğrulama şeması
 const reservationSchema = z.object({
-  room_id: z.number().int(), // oda ID'si zorunlu ve integer olmalı
-  start_datetime: z.string().datetime(), // başlangıç tarihi saat formatında olmalı
-  end_datetime: z.string().datetime(), // bitiş tarihi saat formatında olmalı
+  room_id: z.number().int(),
+  start_datetime: z.string().datetime(),
+  end_datetime: z.string().datetime(),
 });
 
-const createReservationController = (req, res) => {
-  console.log("🎯 [CREATE] createReservationController başlatıldı");
+/**
+ * @desc Rezervasyon oluşturur
+ * @route POST /create-reservation
+ * @access Protected
+ */
+const createReservationController = async (req, res) => {
+  try {
+    const validation = reservationSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        message: "Geçersiz veri",
+        errors: validation.error.errors,
+      });
+    }
 
-  // 1. BODY verisi Zod ile doğrulanıyor
-  const validation = reservationSchema.safeParse(req.body);
-  if (!validation.success) {
-    console.warn("⚠️ [VALIDATION] Geçersiz veri:", validation.error.errors);
-    return res.status(400).json({
-      message: "Geçersiz veri",
-      errors: validation.error.errors,
-    });
+    const { room_id, start_datetime, end_datetime } = validation.data;
+    const user_id = req.auth?.id;
+
+    const conflict = await checkConflict(room_id, start_datetime, end_datetime);
+    if (conflict.length > 0) {
+      return res.status(409).json({ message: "Bu saat aralığı dolu.", conflict });
+    }
+
+    await createReservation(room_id, user_id, start_datetime, end_datetime);
+
+    const [user] = await findUserById(user_id);
+    if (user?.email) {
+      const html = `
+        <h3>Merhaba ${user.username},</h3>
+        <p>Rezervasyonunuz başarıyla oluşturuldu.</p>
+        <p><strong>Başlangıç:</strong> ${start_datetime}</p>
+        <p><strong>Bitiş:</strong> ${end_datetime}</p>
+      `;
+      await sendMail(user.email, "Rezervasyon Onayı", html);
+    }
+
+    return res.status(201).json({ message: "Rezervasyon başarıyla oluşturuldu" });
+  } catch (err) {
+    console.error("Rezervasyon oluşturma hatası:", err);
+    return res.status(500).json({ message: "Sunucu hatası", error: err.message });
   }
-
-  // 2. Doğrulama başarılı → veriler ayrıştırılıyor
-  const { room_id, start_datetime, end_datetime } = validation.data;
-  const user_id = req.auth?.id;
-
-  console.log("📥 [INPUT] room_id:", room_id);
-  console.log("📥 [INPUT] start_datetime:", start_datetime);
-  console.log("📥 [INPUT] end_datetime:", end_datetime);
-  console.log("📥 [INPUT] user_id:", user_id);
-
-  // 3. Zaman aşımı mekanizması kurulur (5 saniye)
-  let timeoutTriggered = false;
-  const timeout = setTimeout(() => {
-    timeoutTriggered = true;
-    console.error("⏰ [TIMEOUT] 5 saniyeyi geçti, işlem iptal edildi");
-    return res.status(504).json({
-      message: "İstek zaman aşımına uğradı (timeout)",
-      debug: { room_id, start_datetime, end_datetime, user_id },
-    });
-  }, 5000);
-
-  // 4. Oda bu saat aralığında dolu mu kontrol ediliyor
-  console.log("🔄 [CHECK] checkConflict fonksiyonu çağrılıyor...");
-  checkConflict(room_id, start_datetime, end_datetime, (err, results) => {
-    console.log("✅ [CALLBACK] checkConflict callback çalıştı");
-
-    if (timeoutTriggered) {
-      console.warn(
-        "⚠️ [AFTER TIMEOUT] checkConflict sonucu geç geldi, işlem atlandı"
-      );
-      return;
-    }
-    clearTimeout(timeout);
-    console.log("🧹 [CLEAR] Timeout temizlendi");
-
-    if (err) {
-      console.error("❌ [DB ERROR] checkConflict hatası:", err);
-      return res.status(500).json({ message: "Veritabanı hatası", error: err });
-    }
-
-    console.log("📊 [DB RESULT] checkConflict sonucu:", results);
-
-    if (results.length > 0) {
-      console.warn("🚫 [CONFLICT] Bu saat aralığı zaten dolu:", results);
-      return res
-        .status(409)
-        .json({ message: "Bu saat aralığı dolu.", results });
-    }
-
-    // 5. Rezervasyon oluşturuluyor
-    console.log("🟢 [INSERT] createReservation başlatılıyor...");
-    createReservation(room_id, user_id, start_datetime, end_datetime, (err) => {
-      console.log("✅ [CALLBACK] createReservation callback tetiklendi");
-
-      if (timeoutTriggered) {
-        console.warn(
-          "⚠️ [AFTER TIMEOUT] createReservation sonucu geç geldi, response gönderilmeyecek"
-        );
-        return;
-      }
-
-      clearTimeout(timeout);
-      console.log("🧹 [CLEAR] Timeout tekrar temizlendi");
-
-      if (err) {
-        console.error("❌ [DB ERROR] createReservation hatası:", err);
-        return res
-          .status(500)
-          .json({ message: "Rezervasyon eklenemedi", error: err });
-      }
-
-      console.log("🎉 [SUCCESS] Rezervasyon başarıyla oluşturuldu");
-      return res
-        .status(201)
-        .json({ message: "Rezervasyon başarıyla oluşturuldu" });
-    });
-  });
 };
 
-// 📍 [GET] /my-reservations
-// Giriş yapmış kullanıcının rezervasyonlarını getirir
-const getMyReservationsController = (req, res) => {
-  const user_id = req.auth?.id; // Token'dan kullanıcı ID'si alınır
-  console.log("👉 GELEN USER ID:", user_id); // 🚨 BURAYA LOG KOY
-
-  getReservationsByUser(user_id, (err, results) => {
-    if (err) return res.status(500).json({ message: "Veritabanı hatası" });
-
-    res.json({ reservations: results }); // JSON formatında tüm rezervasyonlar döner
-  });
+/**
+ * @desc Giriş yapan kullanıcının rezervasyonlarını getirir
+ * @route GET /my-reservations
+ * @access Protected
+ */
+const getMyReservationsController = async (req, res) => {
+  try {
+    const user_id = req.auth?.id;
+    const results = await getReservationsByUser(user_id);
+    res.json({ reservations: results });
+  } catch (err) {
+    console.error("Rezervasyonları getirirken hata:", err);
+    res.status(500).json({ message: "Sunucu hatası" });
+  }
 };
 
-// 📍 [GET] /reservation/:id
-// Belirli bir rezervasyonun detayını getirir
-const getReservationById = (req, res) => {
-  const reservationId = req.params.id; // URL'den rezervasyon ID'si alınır
+/**
+ * @desc Belirli rezervasyon bilgilerini getirir
+ * @route GET /reservation/:id
+ * @access Protected
+ */
+const getReservationById = async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const results = await getResById(reservationId);
+    if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
 
-  getResById(reservationId, (err, results) => {
-    if (err) return res.status(500).json({ message: "Veritabanı hatası" });
-    if (!results.length)
-      return res.status(404).json({ message: "Rezervasyon bulunamadı" });
+    const reservation = results[0];
+    const userIds = JSON.parse(reservation.users || "[]");
+    if (!userIds.includes(req.auth?.id)) {
+      return res.status(403).json({ message: "Bu rezervasyona erişim izniniz yok." });
+    }
 
-    res.json({ reservation: results[0] }); // İlk ve tek sonucu döner
-  });
+    res.json({ reservation });
+  } catch (err) {
+    console.error("Rezervasyon detay hatası:", err);
+    res.status(500).json({ message: "Sunucu hatası" });
+  }
 };
 
-// 📍 [PUT] /update-reservation/:id
-// Belirli bir rezervasyonu günceller
-const updateReservation = (req, res) => {
-  const reservationId = req.params.id;
-  const { start_datetime, end_datetime } = req.body;
+/**
+ * @desc Rezervasyonu günceller
+ * @route PUT /update-reservation/:id
+ * @access Protected
+ */
+const updateReservation = async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const { start_datetime, end_datetime } = req.body;
+    const results = await getResById(reservationId);
 
-  // Güncelleme işlemi yapılır
-  updateReservationById(reservationId, start_datetime, end_datetime, (err) => {
-    if (err) return res.status(500).json({ message: "Güncelleme başarısız" });
+    if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
+
+    const reservation = results[0];
+    const userIds = JSON.parse(reservation.users || "[]");
+    if (!userIds.includes(req.auth?.id)) {
+      return res.status(403).json({ message: "Bu rezervasyonu güncelleyemezsiniz." });
+    }
+
+    const conflict = await checkConflict(reservation.room_id, start_datetime, end_datetime);
+    if (conflict.some(r => r.id !== reservation.id)) {
+      return res.status(409).json({ message: "Bu saat aralığı dolu." });
+    }
+
+    await updateReservationById(reservationId, start_datetime, end_datetime);
+
+    const [user] = await findUserById(req.auth.id);
+    if (user?.email) {
+      const html = `
+        <h3>Merhaba ${user.username},</h3>
+        <p>Rezervasyonunuz başarıyla güncellendi.</p>
+        <p><strong>Yeni Başlangıç:</strong> ${start_datetime}</p>
+        <p><strong>Yeni Bitiş:</strong> ${end_datetime}</p>
+      `;
+      await sendMail(user.email, "Rezervasyon Güncelleme", html);
+    }
 
     res.json({ message: "Rezervasyon güncellendi" });
-  });
+  } catch (err) {
+    console.error("Rezervasyon güncelleme hatası:", err);
+    res.status(500).json({ message: "Sunucu hatası" });
+  }
 };
 
-// 📍 [DELETE] /delete-reservation/:id
-// Belirli bir rezervasyonu siler
-const deleteReservation = (req, res) => {
-  const reservationId = req.params.id;
+/**
+ * @desc Rezervasyonu siler ve kullanıcıya e-posta gönderir
+ * @route DELETE /delete-reservation/:id
+ * @access Protected
+ */
+const deleteReservation = async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const results = await getResById(reservationId);
+    if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
 
-  // Silme işlemi yapılır
-  deleteReservationById(reservationId, (err) => {
-    if (err) return res.status(500).json({ message: "Silme işlemi başarısız" });
+    const reservation = results[0];
+    const userIds = JSON.parse(reservation.users || "[]");
+    if (!userIds.includes(req.auth?.id)) {
+      return res.status(403).json({ message: "Bu rezervasyonu silemezsiniz." });
+    }
 
+    const [user] = await findUserById(req.auth.id);
+    if (user?.email) {
+      const html = `
+        <h3>Merhaba ${user.username},</h3>
+        <p>Rezervasyonunuz iptal edildi.</p>
+        <p><strong>Başlangıç:</strong> ${reservation.start_datetime}</p>
+      `;
+      await sendMail(user.email, "Rezervasyon İptali", html);
+    }
+
+    await deleteReservationById(reservationId);
     res.json({ message: "Rezervasyon silindi" });
-  });
+  } catch (err) {
+    console.error("Rezervasyon silme hatası:", err);
+    res.status(500).json({ message: "Sunucu hatası" });
+  }
 };
 
-// 🔄 Controller fonksiyonlarını dışa aktarıyoruz
+/**
+ * @desc Filtrelenmiş rezervasyonları getirir (pagination destekli)
+ * @route GET /search-reservations?page=&limit=&room_id=&start_date=&end_date=
+ * @access Protected
+ */
+const searchReservationsController = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const filters = {
+      room_id: req.query.room_id ? Number(req.query.room_id) : undefined,
+      user_id: req.auth?.id,
+      start_date: req.query.start_date,
+      end_date: req.query.end_date
+    };
+
+    const results = await searchReservations(filters, limit, offset);
+    res.json({ page, limit, results });
+  } catch (err) {
+    console.error("Filtreleme hatası:", err);
+    res.status(500).json({ message: 'Filtreleme sırasında hata oluştu' });
+  }
+};
+
+// 🌐 Controller fonksiyonları dışa aktarılır
 module.exports = {
   createReservation: createReservationController,
   getMyReservations: getMyReservationsController,
   getReservationById,
   updateReservation,
   deleteReservation,
+  searchReservationsController,
 };

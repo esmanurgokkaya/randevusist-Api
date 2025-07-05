@@ -1,24 +1,19 @@
 /**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
+ * Oda rezervasyonlarını tutan tablo.
+ * Alanlar: id, room_id, users (JSON array), start_datetime, end_datetime, timestamps
  */
 exports.up = function(knex) {
-  return knex.schema.createTable('availability_calendar', function (table) {
-    table.increments('id').primary();
+  return knex.schema.createTable('availability_calendar', function(table) {
+    table.increments('id').primary(); // Rezervasyon ID
     table.integer('room_id').unsigned().notNullable()
-         .references('id').inTable('rooms')
-         .onDelete('CASCADE');
-    table.json('users'); // tek user için string/int de yapabilirsin
-    table.dateTime('start_datetime').notNullable();
-    table.dateTime('end_datetime').notNullable();
+         .references('id').inTable('rooms').onDelete('CASCADE'); // Oda ilişkisi
+    table.json('users').defaultTo(JSON.stringify([])); // Kullanıcı ID'lerini tutan json array
+    table.datetime('start_datetime').notNullable(); // Başlangıç zamanı
+    table.datetime('end_datetime').notNullable(); // Bitiş zamanı
     table.timestamps(true, true);
   });
 };
 
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
- */
 exports.down = function(knex) {
-  return knex.schema.dropTable('availability_calendar');
+  return knex.schema.dropTableIfExists('availability_calendar');
 };
