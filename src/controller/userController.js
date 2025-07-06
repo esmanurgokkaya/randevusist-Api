@@ -8,13 +8,12 @@ const {
 const argon2 = require('argon2');
 const z = require('zod');
 
-// --- 📌 Zod Şeması ---
-/**
- * Kullanıcı güncelleme işlemi için isteğin doğrulanacağı alanlar
- */
+// --- 📌 Zod şeması: Kullanıcı profil güncelleme için doğrulama kuralları ---
 const updateUserSchema = z.object({
-  username: z.string().min(3, "Kullanıcı adı en az 3 karakter olmalı").optional(),
+  name: z.string().min(3, "İsim en az 3 karakter olmalı").optional(),
+  lastname: z.string().min(2, "Soyisim en az 2 karakter olmalı").optional(),
   email: z.string().email("Geçerli bir e-posta girin").optional(),
+  phone: z.string().optional(),
   oldPassword: z.string().min(6, "Eski parola en az 6 karakter olmalı").optional(),
   newPassword: z.string()
     .min(6, "Yeni parola en az 6 karakter olmalı")
@@ -25,49 +24,40 @@ const updateUserSchema = z.object({
     .optional(),
 });
 
-/**
- * @desc   Kullanıcının profil bilgilerini döndürür
- * @route  GET /api/user/profile
- * @access Protected
- */
 const getUserProfile = async (req, res) => {
   const userId = req.auth?.id;
   if (!userId) return res.status(401).json({ message: 'Yetkisiz erişim.' });
 
   try {
-    const results = await findUserById(userId);
-    if (!results?.length) {
+    const user = await findUserById(userId);
+    if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
-
-    const user = results[0];
 
     return res.json({
       message: 'Kullanıcı profili başarıyla getirildi.',
       user: {
         id: user.id,
-        username: user.username,
-        email: user.email
+        name: user.name,
+        lastname: user.lastname,
+        email: user.email,
+        phone: user.phone,
+        role: user.role
       }
     });
   } catch (err) {
-    console.error("Profil bilgileri alınırken hata:", err);
+    console.error("Profil bilgileri alınırken hata:", err.stack || err.message);
     return res.status(500).json({ message: 'Sunucu hatası.' });
   }
 };
 
-/**
- * @desc   Kullanıcının hesabını siler
- * @route  DELETE /api/user/profile
- * @access Protected
- */
 const deleteUserProfile = async (req, res) => {
   const userId = req.auth?.id;
   if (!userId) return res.status(401).json({ message: 'Yetkisiz erişim.' });
 
   try {
-    const results = await findUserById(userId);
-    if (!results?.length) {
+    const user = await findUserById(userId);
+    if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
 
@@ -75,21 +65,15 @@ const deleteUserProfile = async (req, res) => {
     return res.json({ message: 'Hesap başarıyla silindi' });
 
   } catch (err) {
-    console.error("Hesap silme hatası:", err);
+    console.error("Hesap silme hatası:", err.stack || err.message);
     return res.status(500).json({ message: 'Sunucu hatası: hesap silinemedi.' });
   }
 };
 
-/**
- * @desc   Kullanıcı bilgilerini günceller (opsiyonel olarak parola değişikliği yapılabilir)
- * @route  PUT /api/user/profile
- * @access Protected
- */
 const updateUserProfile = async (req, res) => {
   const userId = req.auth?.id;
   if (!userId) return res.status(401).json({ message: 'Yetkisiz erişim.' });
 
-  // Gelen veriyi şemaya göre kontrol et
   const validation = updateUserSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -101,58 +85,52 @@ const updateUserProfile = async (req, res) => {
   const data = validation.data;
 
   try {
-    const results = await findUserById(userId);
-    if (!results?.length) {
+    const user = await findUserById(userId);
+    if (!user) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
-    const user = results[0];
     let passwordToSave = user.password;
 
-    // --- Şifre değiştirme işlemi varsa ---
     if (data.oldPassword || data.newPassword) {
-      // Her iki parola da sağlanmalı
       if (!data.oldPassword || !data.newPassword) {
         return res.status(400).json({
           message: 'Parola değiştirmek için hem eski hem yeni parola gereklidir.'
         });
       }
 
-      // Eski parolayı kontrol et
       const match = await argon2.verify(user.password, data.oldPassword);
       if (!match) {
         return res.status(401).json({ message: 'Eski parola hatalı.' });
       }
 
-      // Yeni parolayı hashle
       passwordToSave = await argon2.hash(data.newPassword);
     }
 
-    // --- E-posta benzersiz mi kontrol et ---
     if (data.email && data.email !== user.email) {
       const existing = await isEmailTakenByAnotherUser(data.email, userId);
-      if (existing.length > 0) {
+      if (existing) {
         return res.status(409).json({ message: 'Bu e-posta başka bir kullanıcıya ait.' });
       }
     }
 
-    // --- Veritabanını güncelle ---
     await updateUserById(
       userId,
-      data.username ?? user.username,
+      data.name ?? user.name,
+      data.lastname ?? user.lastname,
       data.email ?? user.email,
+      data.phone ?? user.phone,
       passwordToSave
     );
 
     return res.json({ message: 'Profil başarıyla güncellendi.' });
 
   } catch (err) {
-    console.error("Güncelleme hatası:", err);
+    console.error("Güncelleme hatası:", err.stack || err.message);
     return res.status(500).json({ message: 'Sunucu hatası: profil güncellenemedi.' });
   }
 };
 
-// --- 📦 Export ---
 module.exports = {
   getUserProfile,
   deleteUserProfile,

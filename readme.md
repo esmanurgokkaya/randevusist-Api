@@ -56,17 +56,18 @@ npm install
 Create a `.env` file and fill in:
 
 ```env
-DB_HOST = 
-DB_USER =
-DB_PASSWORD =
-DB_NAME = 
+DB_HOST=
+DB_USER=
+DB_PASSWORD=
+DB_NAME=
 DB_PORT=
-PORT = 
+PORT=
 JWT_SECRET=supersecretkey
 JWT_REFRESH_SECRET=anothersecret
-JWT_EXPIRES_IN=15s
-EMAIL_USER=your@gmail.com
-EMAIL_PASS=apppassword 
+JWT_EXPIRES_IN=15m
+MAIL_USER=your@gmail.com
+MAIL_PASS=yourapppassword
+
 
 ```
 

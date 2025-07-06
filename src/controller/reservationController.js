@@ -1,4 +1,3 @@
-// 📦 Gerekli bağımlılıkları alıyoruz
 const {
   createReservation,
   checkConflict,
@@ -38,14 +37,17 @@ const createReservationController = async (req, res) => {
     const { room_id, start_datetime, end_datetime } = validation.data;
     const user_id = req.auth?.id;
 
+    // Çakışan rezervasyon kontrolü
     const conflict = await checkConflict(room_id, start_datetime, end_datetime);
     if (conflict.length > 0) {
       return res.status(409).json({ message: "Bu saat aralığı dolu.", conflict });
     }
 
+    // Rezervasyonu oluştur
     await createReservation(room_id, user_id, start_datetime, end_datetime);
 
-    const [user] = await findUserById(user_id);
+    // Kullanıcı bilgilerini al (düzeltildi: direkt kullanıcı objesi)
+    const user = await findUserById(user_id);
     if (user?.email) {
       const html = `
         <h3>Merhaba ${user.username},</h3>
@@ -91,7 +93,15 @@ const getReservationById = async (req, res) => {
     if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
 
     const reservation = results[0];
-    const userIds = JSON.parse(reservation.users || "[]");
+
+    // users alanı JSON string ise parse et, değilse boş array kullan
+    let userIds = [];
+    try {
+      userIds = JSON.parse(reservation.users || "[]");
+    } catch {
+      userIds = [];
+    }
+
     if (!userIds.includes(req.auth?.id)) {
       return res.status(403).json({ message: "Bu rezervasyona erişim izniniz yok." });
     }
@@ -117,11 +127,20 @@ const updateReservation = async (req, res) => {
     if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
 
     const reservation = results[0];
-    const userIds = JSON.parse(reservation.users || "[]");
+
+    // users alanı JSON string ise parse et, değilse boş array kullan
+    let userIds = [];
+    try {
+      userIds = JSON.parse(reservation.users || "[]");
+    } catch {
+      userIds = [];
+    }
+
     if (!userIds.includes(req.auth?.id)) {
       return res.status(403).json({ message: "Bu rezervasyonu güncelleyemezsiniz." });
     }
 
+    // Çakışma kontrolü (kendisi hariç)
     const conflict = await checkConflict(reservation.room_id, start_datetime, end_datetime);
     if (conflict.some(r => r.id !== reservation.id)) {
       return res.status(409).json({ message: "Bu saat aralığı dolu." });
@@ -129,7 +148,8 @@ const updateReservation = async (req, res) => {
 
     await updateReservationById(reservationId, start_datetime, end_datetime);
 
-    const [user] = await findUserById(req.auth.id);
+    // Kullanıcı bilgileri (düzeltildi)
+    const user = await findUserById(req.auth.id);
     if (user?.email) {
       const html = `
         <h3>Merhaba ${user.username},</h3>
@@ -159,12 +179,21 @@ const deleteReservation = async (req, res) => {
     if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
 
     const reservation = results[0];
-    const userIds = JSON.parse(reservation.users || "[]");
+
+    // users alanı JSON string ise parse et, değilse boş array kullan
+    let userIds = [];
+    try {
+      userIds = JSON.parse(reservation.users || "[]");
+    } catch {
+      userIds = [];
+    }
+
     if (!userIds.includes(req.auth?.id)) {
       return res.status(403).json({ message: "Bu rezervasyonu silemezsiniz." });
     }
 
-    const [user] = await findUserById(req.auth.id);
+    // Kullanıcı bilgileri (düzeltildi)
+    const user = await findUserById(req.auth.id);
     if (user?.email) {
       const html = `
         <h3>Merhaba ${user.username},</h3>

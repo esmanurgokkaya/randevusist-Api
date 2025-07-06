@@ -1,78 +1,87 @@
-const db = require('../config/db.js'); // MySQL bağlantısını içe aktar
+// src/models/userModels.js
+const db = require('../config/db.js');
+
+/**
+ * Reusable query executor with automatic connection release.
+ */
+const _query = async (query, params) => {
+  const conn = await db.getConnection();
+  try {
+    const [rows] = await conn.query(query, params);
+    return [rows];
+  } finally {
+    conn.release();
+  }
+};
 
 /**
  * Yeni kullanıcı oluşturur
- * @param {string} username - Kullanıcı adı
- * @param {string} email - Kullanıcının e-posta adresi
- * @param {string} password - Şifre (argon2 ile hashlenmiş olmalı)
- * @returns {Promise<object>} - MySQL işlem sonucu
+ * @param {string} name
+ * @param {string} lastname
+ * @param {string} email
+ * @param {string} phone
+ * @param {string} password - Argon2 hashlenmiş şifre
+ * @param {string} role - (varsayılan: 'user')
  */
-const createUser = async (username, email, password) => {
-  const query = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
-  const [result] = await db.query(query, [username, email, password]);
+const createUser = async (name, lastname, email, phone, password, role = 'user') => {
+  const query = `
+    INSERT INTO users (name, lastname, email, phone, password, role)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+  const [result] = await _query(query, [name, lastname, email, phone, password, role]);
   return result;
 };
 
 /**
- * E-posta ile kullanıcı arar
- * @param {string} email - Aranacak e-posta
- * @returns {Promise<object|null>} - Kullanıcı nesnesi veya null
+ * E-posta ile kullanıcıyı bulur
  */
 const findUserByEmail = async (email) => {
   const query = 'SELECT * FROM users WHERE email = ?';
-  const [rows] = await db.query(query, [email]);
+  const [rows] = await _query(query, [email]);
   return rows[0] || null;
 };
 
 /**
  * ID ile kullanıcıyı bulur
- * @param {number} id - Kullanıcı ID'si
- * @returns {Promise<object|null>} - Kullanıcı nesnesi veya null
  */
 const findUserById = async (id) => {
   const query = 'SELECT * FROM users WHERE id = ?';
-  const [rows] = await db.query(query, [id]);
+  const [rows] = await _query(query, [id]);
   return rows[0] || null;
 };
 
 /**
- * ID ile kullanıcıyı siler
- * @param {number} id - Kullanıcı ID'si
- * @returns {Promise<object>} - MySQL işlem sonucu
+ * Kullanıcıyı ID ile siler
  */
 const deleteUserById = async (id) => {
   const query = 'DELETE FROM users WHERE id = ?';
-  const [result] = await db.query(query, [id]);
+  const [result] = await _query(query, [id]);
   return result;
 };
 
 /**
- * ID'ye göre kullanıcı bilgilerini günceller
- * @param {number} id - Kullanıcı ID'si
- * @param {string} username - Yeni kullanıcı adı
- * @param {string} email - Yeni e-posta
- * @param {string} password - Yeni şifre (argon2 hashlenmiş)
- * @returns {Promise<object>} - MySQL işlem sonucu
+ * Kullanıcı bilgilerini günceller
  */
-const updateUserById = async (id, username, email, password) => {
-  const query = 'UPDATE users SET username = ?, email = ?, password = ? WHERE id = ?';
-  const [result] = await db.query(query, [username, email, password, id]);
+const updateUserById = async (id, name, lastname, email, phone, password) => {
+  const query = `
+    UPDATE users
+    SET name = ?, lastname = ?, email = ?, phone = ?, password = ?
+    WHERE id = ?
+  `;
+  const [result] = await _query(query, [name, lastname, email, phone, password, id]);
   return result;
 };
 
 /**
- * Bu e-posta başka bir kullanıcıya mı ait? (email unique mi?)
- * @param {string} email - Kontrol edilecek e-posta
- * @param {number} currentUserId - Mevcut kullanıcının ID'si (dahil edilmeyecek)
- * @returns {Promise<boolean>} - E-posta başka kullanıcıda varsa true
+ * Aynı e-posta başka kullanıcı tarafından kullanılıyor mu?
  */
 const isEmailTakenByAnotherUser = async (email, currentUserId) => {
   const query = 'SELECT id FROM users WHERE email = ? AND id != ?';
-  const [rows] = await db.query(query, [email, currentUserId]);
+  const [rows] = await _query(query, [email, currentUserId]);
   return rows.length > 0;
 };
 
-// Dışa aktarma
+// 🔄 Export
 module.exports = {
   createUser,
   findUserByEmail,

@@ -11,7 +11,7 @@ exports.up = function(knex) {
     table.string('password').notNullable(); // Şifre (argon2 ile hashlenecek)
     table.string('phone').nullable(); // Telefon numarası (opsiyonel)
     table.string('image').nullable(); // Profil resmi (opsiyonel)
-    table.enu('role', ['admin', 'employee']).defaultTo('employee'); // Kullanıcı rolü
+    table.enu('role', ['admin', 'employee','user']).defaultTo('user'); // Kullanıcı rolü
     table.timestamps(true, true); // created_at ve updated_at
   });
 };
