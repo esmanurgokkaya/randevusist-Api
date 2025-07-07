@@ -4,6 +4,7 @@ const cors = require('cors');
 require('dotenv').config(); // .env dosyasındaki değişkenleri yükle
 
 // 📦 Route dosyalarını içeri al
+const roomRoutes = require("./src/routes/roomRoute");
 const authRoutes = require('./src/routes/authRoute');
 const userRoutes = require('./src/routes/userRoute');
 const reservationRoutes = require('./src/routes/reservationRoute');
@@ -28,6 +29,7 @@ app.use(cors({
 app.use('/auth', authRoutes);           // /api/auth/register, /api/auth/login
 app.use('/users', userRoutes);          // /api/users/me
 app.use('/reservations', reservationRoutes); // /api/reservations/
+app.use("/rooms", roomRoutes);
 
 // ⚠️ Hataları merkezi olarak yakalayan middleware (örn: JWT geçersizse)
 app.use(handleAuthError);
