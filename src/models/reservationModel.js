@@ -2,39 +2,29 @@ const db = require('../config/db'); // mysql2/promise bağlantısı varsayılıy
 
 /**
  * @desc Yeni rezervasyon oluşturur
- * @param {number} room_id Oda ID'si
- * @param {number} user_id Kullanıcı ID'si (tek kullanıcı için)
- * @param {string} start_datetime Rezervasyon başlangıç zamanı (ISO format)
- * @param {string} end_datetime Rezervasyon bitiş zamanı (ISO format)
  */
 async function createReservation(room_id, user_id, start_datetime, end_datetime) {
   const sql = `
     INSERT INTO availability_calendar (room_id, users, start_datetime, end_datetime)
     VALUES (?, ?, ?, ?)
   `;
-  // users sütunu JSON array string olarak tutuluyor, başta sadece tek kullanıcı var
   const usersJson = JSON.stringify([user_id]);
-
   await db.execute(sql, [room_id, usersJson, start_datetime, end_datetime]);
 }
 
 /**
  * @desc Verilen oda ve tarih aralığında çakışan rezervasyonları kontrol eder
- * @param {number} room_id 
- * @param {string} start_datetime 
- * @param {string} end_datetime 
- * @returns {Promise<Array>} Çakışan rezervasyonlar listesi
  */
 async function checkConflict(room_id, start_datetime, end_datetime) {
   const sql = `
     SELECT * FROM availability_calendar
     WHERE room_id = ?
       AND (
-        (start_datetime < ? AND end_datetime > ?) -- yeni başlangıç aralıktaysa
+        (start_datetime < ? AND end_datetime > ?)
         OR
-        (start_datetime < ? AND end_datetime > ?) -- yeni bitiş aralıktaysa
+        (start_datetime < ? AND end_datetime > ?)
         OR
-        (start_datetime >= ? AND end_datetime <= ?) -- tamamen kapsanıyorsa
+        (start_datetime >= ? AND end_datetime <= ?)
       )
   `;
   const [rows] = await db.execute(sql, [
@@ -48,26 +38,19 @@ async function checkConflict(room_id, start_datetime, end_datetime) {
 
 /**
  * @desc Kullanıcının tüm rezervasyonlarını getirir
- * @param {number} user_id
- * @returns {Promise<Array>} Rezervasyon listesi
  */
 async function getReservationsByUser(user_id) {
-  // users alanı JSON array string, içinde user_id olanları getir
   const sql = `
     SELECT * FROM availability_calendar
-    WHERE JSON_CONTAINS(users, ?)
+    WHERE JSON_CONTAINS(users, ?, '$')
     ORDER BY start_datetime DESC
   `;
-  // JSON_CONTAINS için arama array olarak gönderilmeli
-  const userJson = JSON.stringify([user_id]);
-  const [rows] = await db.execute(sql, [userJson]);
+  const [rows] = await db.execute(sql, [JSON.stringify(user_id)]);
   return rows;
 }
 
 /**
  * @desc Rezervasyon ID ile rezervasyon bilgisini getirir
- * @param {number} reservationId
- * @returns {Promise<Array>} Rezervasyon satırı (tek veya boş)
  */
 async function getReservationById(reservationId) {
   const sql = `SELECT * FROM availability_calendar WHERE id = ?`;
@@ -77,9 +60,6 @@ async function getReservationById(reservationId) {
 
 /**
  * @desc Rezervasyonun başlangıç ve bitiş zamanlarını günceller
- * @param {number} reservationId
- * @param {string} start_datetime
- * @param {string} end_datetime
  */
 async function updateReservationById(reservationId, start_datetime, end_datetime) {
   const sql = `
@@ -92,7 +72,6 @@ async function updateReservationById(reservationId, start_datetime, end_datetime
 
 /**
  * @desc Rezervasyonu ID ile siler
- * @param {number} reservationId
  */
 async function deleteReservationById(reservationId) {
   const sql = `DELETE FROM availability_calendar WHERE id = ?`;
@@ -101,10 +80,6 @@ async function deleteReservationById(reservationId) {
 
 /**
  * @desc Filtre ve sayfalama ile rezervasyonları getirir
- * @param {object} filters Filtreler: {room_id, user_id, start_date, end_date}
- * @param {number} limit Sayfa başına kayıt sayısı
- * @param {number} offset Başlangıç kaydı
- * @returns {Promise<Array>} Filtrelenmiş rezervasyonlar
  */
 async function searchReservations(filters, limit, offset) {
   let baseSql = `SELECT * FROM availability_calendar WHERE 1=1`;
@@ -114,11 +89,13 @@ async function searchReservations(filters, limit, offset) {
     baseSql += " AND room_id = ?";
     params.push(filters.room_id);
   }
+if (filters.user_id) {
+  baseSql += " AND users LIKE ?";
+  params.push(`%\"${filters.user_id}\"%`);
+}
 
-  if (filters.user_id) {
-    baseSql += " AND JSON_CONTAINS(users, ?)";
-    params.push(JSON.stringify([filters.user_id]));  // Burada array olarak gönderiyoruz
-  }
+
+  
 
   if (filters.start_date) {
     baseSql += " AND start_datetime >= ?";
@@ -133,9 +110,16 @@ async function searchReservations(filters, limit, offset) {
   baseSql += " ORDER BY start_datetime DESC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
+  console.log("SQL:", baseSql);
+  console.log("Params:", params);
+
   const [rows] = await db.execute(baseSql, params);
   return rows;
 }
+
+
+
+
 
 module.exports = {
   createReservation,

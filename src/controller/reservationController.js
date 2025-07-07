@@ -5,25 +5,32 @@ const {
   getReservationById: getResById,
   updateReservationById,
   deleteReservationById,
-  searchReservations
+  searchReservations,
 } = require("../models/reservationModel");
 
 const { findUserById } = require("../models/userModels");
 const sendMail = require("../utils/mailService");
 const z = require("zod");
 
-// 🧪 Yeni rezervasyon için veri doğrulama şeması
+// ISO 8601 string'i MySQL DATETIME formatına çevir
+function toMySQLDatetime(isoString) {
+  const date = new Date(isoString);
+  if (isNaN(date)) throw new Error("Invalid date format");
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+}
+
 const reservationSchema = z.object({
   room_id: z.number().int(),
   start_datetime: z.string().datetime(),
   end_datetime: z.string().datetime(),
 });
 
-/**
- * @desc Rezervasyon oluşturur
- * @route POST /create-reservation
- * @access Protected
- */
 const createReservationController = async (req, res) => {
   try {
     const validation = reservationSchema.safeParse(req.body);
@@ -37,16 +44,16 @@ const createReservationController = async (req, res) => {
     const { room_id, start_datetime, end_datetime } = validation.data;
     const user_id = req.auth?.id;
 
-    // Çakışan rezervasyon kontrolü
-    const conflict = await checkConflict(room_id, start_datetime, end_datetime);
+    const start = toMySQLDatetime(start_datetime);
+    const end = toMySQLDatetime(end_datetime);
+
+    const conflict = await checkConflict(room_id, start, end);
     if (conflict.length > 0) {
       return res.status(409).json({ message: "Bu saat aralığı dolu.", conflict });
     }
 
-    // Rezervasyonu oluştur
-    await createReservation(room_id, user_id, start_datetime, end_datetime);
+    await createReservation(room_id, user_id, start, end);
 
-    // Kullanıcı bilgilerini al (düzeltildi: direkt kullanıcı objesi)
     const user = await findUserById(user_id);
     if (user?.email) {
       const html = `
@@ -65,11 +72,6 @@ const createReservationController = async (req, res) => {
   }
 };
 
-/**
- * @desc Giriş yapan kullanıcının rezervasyonlarını getirir
- * @route GET /my-reservations
- * @access Protected
- */
 const getMyReservationsController = async (req, res) => {
   try {
     const user_id = req.auth?.id;
@@ -81,11 +83,6 @@ const getMyReservationsController = async (req, res) => {
   }
 };
 
-/**
- * @desc Belirli rezervasyon bilgilerini getirir
- * @route GET /reservation/:id
- * @access Protected
- */
 const getReservationById = async (req, res) => {
   try {
     const reservationId = req.params.id;
@@ -94,10 +91,11 @@ const getReservationById = async (req, res) => {
 
     const reservation = results[0];
 
-    // users alanı JSON string ise parse et, değilse boş array kullan
     let userIds = [];
     try {
-      userIds = JSON.parse(reservation.users || "[]");
+      userIds = Array.isArray(reservation.users)
+        ? reservation.users
+        : JSON.parse(reservation.users || "[]");
     } catch {
       userIds = [];
     }
@@ -113,25 +111,33 @@ const getReservationById = async (req, res) => {
   }
 };
 
-/**
- * @desc Rezervasyonu günceller
- * @route PUT /update-reservation/:id
- * @access Protected
- */
 const updateReservation = async (req, res) => {
   try {
     const reservationId = req.params.id;
-    const { start_datetime, end_datetime } = req.body;
-    const results = await getResById(reservationId);
 
+    const schema = z.object({
+      start_datetime: z.string().datetime(),
+      end_datetime: z.string().datetime(),
+    });
+    const validation = schema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        message: "Geçersiz veri",
+        errors: validation.error.errors,
+      });
+    }
+    const { start_datetime, end_datetime } = validation.data;
+
+    const results = await getResById(reservationId);
     if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
 
     const reservation = results[0];
 
-    // users alanı JSON string ise parse et, değilse boş array kullan
     let userIds = [];
     try {
-      userIds = JSON.parse(reservation.users || "[]");
+      userIds = Array.isArray(reservation.users)
+        ? reservation.users
+        : JSON.parse(reservation.users || "[]");
     } catch {
       userIds = [];
     }
@@ -140,15 +146,16 @@ const updateReservation = async (req, res) => {
       return res.status(403).json({ message: "Bu rezervasyonu güncelleyemezsiniz." });
     }
 
-    // Çakışma kontrolü (kendisi hariç)
-    const conflict = await checkConflict(reservation.room_id, start_datetime, end_datetime);
-    if (conflict.some(r => r.id !== reservation.id)) {
+    const start = toMySQLDatetime(start_datetime);
+    const end = toMySQLDatetime(end_datetime);
+
+    const conflict = await checkConflict(reservation.room_id, start, end);
+    if (conflict.some((r) => r.id !== reservation.id)) {
       return res.status(409).json({ message: "Bu saat aralığı dolu." });
     }
 
-    await updateReservationById(reservationId, start_datetime, end_datetime);
+    await updateReservationById(reservationId, start, end);
 
-    // Kullanıcı bilgileri (düzeltildi)
     const user = await findUserById(req.auth.id);
     if (user?.email) {
       const html = `
@@ -167,11 +174,6 @@ const updateReservation = async (req, res) => {
   }
 };
 
-/**
- * @desc Rezervasyonu siler ve kullanıcıya e-posta gönderir
- * @route DELETE /delete-reservation/:id
- * @access Protected
- */
 const deleteReservation = async (req, res) => {
   try {
     const reservationId = req.params.id;
@@ -180,10 +182,11 @@ const deleteReservation = async (req, res) => {
 
     const reservation = results[0];
 
-    // users alanı JSON string ise parse et, değilse boş array kullan
     let userIds = [];
     try {
-      userIds = JSON.parse(reservation.users || "[]");
+      userIds = Array.isArray(reservation.users)
+        ? reservation.users
+        : JSON.parse(reservation.users || "[]");
     } catch {
       userIds = [];
     }
@@ -192,7 +195,6 @@ const deleteReservation = async (req, res) => {
       return res.status(403).json({ message: "Bu rezervasyonu silemezsiniz." });
     }
 
-    // Kullanıcı bilgileri (düzeltildi)
     const user = await findUserById(req.auth.id);
     if (user?.email) {
       const html = `
@@ -211,11 +213,6 @@ const deleteReservation = async (req, res) => {
   }
 };
 
-/**
- * @desc Filtrelenmiş rezervasyonları getirir (pagination destekli)
- * @route GET /search-reservations?page=&limit=&room_id=&start_date=&end_date=
- * @access Protected
- */
 const searchReservationsController = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -226,18 +223,17 @@ const searchReservationsController = async (req, res) => {
       room_id: req.query.room_id ? Number(req.query.room_id) : undefined,
       user_id: req.auth?.id,
       start_date: req.query.start_date,
-      end_date: req.query.end_date
+      end_date: req.query.end_date,
     };
 
     const results = await searchReservations(filters, limit, offset);
     res.json({ page, limit, results });
   } catch (err) {
     console.error("Filtreleme hatası:", err);
-    res.status(500).json({ message: 'Filtreleme sırasında hata oluştu' });
+    res.status(500).json({ message: "Filtreleme sırasında hata oluştu" });
   }
 };
 
-// 🌐 Controller fonksiyonları dışa aktarılır
 module.exports = {
   createReservation: createReservationController,
   getMyReservations: getMyReservationsController,
@@ -246,3 +242,4 @@ module.exports = {
   deleteReservation,
   searchReservationsController,
 };
+

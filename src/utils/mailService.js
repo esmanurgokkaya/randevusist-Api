@@ -9,12 +9,12 @@ if (!MAIL_USER || !MAIL_PASS) {
   console.warn("⚠️ MAIL_USER veya MAIL_PASS .env dosyasında tanımlı değil!");
 }
 
-// 🛠️ Mail sunucusu yapılandırması
+// 🛠️ Mail sunucusu yapılandırması (Gmail servisi ile)
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // Gmail dışı servisler için host, port, secure da kullanılabilir
+  service: 'gmail',
   auth: {
     user: MAIL_USER,
-    pass: MAIL_PASS,
+    pass: MAIL_PASS, // ❗ Gmail uygulama şifresi kullanılmalı
   },
 });
 
@@ -27,17 +27,22 @@ const transporter = nodemailer.createTransport({
  */
 const sendMail = async (to, subject, htmlContent) => {
   try {
-    // ✉️ Mail gönderme işlemi
-    await transporter.sendMail({
+    const mailOptions = {
       from: `"Randevu Sistemi" <${MAIL_USER}>`,
       to,
       subject,
       html: htmlContent,
-    });
+    };
 
-    console.log(`📬 Mail gönderildi → ${to}`);
+    // ✉️ Mail gönderme işlemi
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`📬 Mail gönderildi → ${to} | Mesaj ID: ${info.messageId}`);
   } catch (error) {
-    console.error("❌ Mail gönderimi başarısız:", error);
+    console.error("❌ Mail gönderimi başarısız:");
+    console.error("Hata Mesajı:", error.message);
+    if (error.response) {
+      console.error("SMTP Yanıtı:", error.response);
+    }
     throw new Error('Mail gönderilemedi');
   }
 };

@@ -43,7 +43,7 @@ const generateRefreshToken = async (user) => {
   const token = jwt.sign(
     { id: user.id, email: user.email },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "1h" }
   );
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await saveRefreshToken(user.id, token, expiresAt);
