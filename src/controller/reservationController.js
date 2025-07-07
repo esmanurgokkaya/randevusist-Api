@@ -10,6 +10,7 @@ const {
 
 const { findUserById } = require("../models/userModels");
 const sendMail = require("../utils/mailService");
+const renderEmailTemplate = require("../utils/emailTemplate");
 const z = require("zod");
 
 // ISO 8601 string'i MySQL DATETIME formatına çevir
@@ -23,6 +24,17 @@ function toMySQLDatetime(isoString) {
   const min = String(date.getMinutes()).padStart(2, "0");
   const ss = String(date.getSeconds()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+}
+
+// ISO 8601 tarihini okunabilir hale getir
+function formatDateTime(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleString("tr-TR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    hour12: false,
+    timeZone: "Europe/Istanbul",
+  });
 }
 
 const reservationSchema = z.object({
@@ -56,12 +68,26 @@ const createReservationController = async (req, res) => {
 
     const user = await findUserById(user_id);
     if (user?.email) {
-      const html = `
-        <h3>Merhaba ${user.username},</h3>
+      const content = `
         <p>Rezervasyonunuz başarıyla oluşturuldu.</p>
-        <p><strong>Başlangıç:</strong> ${start_datetime}</p>
-        <p><strong>Bitiş:</strong> ${end_datetime}</p>
+        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Başlangıç:</td>
+            <td style="padding: 8px;">${formatDateTime(start_datetime)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Bitiş:</td>
+            <td style="padding: 8px;">${formatDateTime(end_datetime)}</td>
+          </tr>
+        </table>
       `;
+      const html = renderEmailTemplate({
+        title: "Rezervasyon Onayı",
+        name: user.name,
+        content
+      });
+   
+
       await sendMail(user.email, "Rezervasyon Onayı", html);
     }
 
@@ -158,12 +184,24 @@ const updateReservation = async (req, res) => {
 
     const user = await findUserById(req.auth.id);
     if (user?.email) {
-      const html = `
-        <h3>Merhaba ${user.username},</h3>
+      const content = `
         <p>Rezervasyonunuz başarıyla güncellendi.</p>
-        <p><strong>Yeni Başlangıç:</strong> ${start_datetime}</p>
-        <p><strong>Yeni Bitiş:</strong> ${end_datetime}</p>
+        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Yeni Başlangıç:</td>
+            <td style="padding: 8px;">${formatDateTime(start_datetime)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Yeni Bitiş:</td>
+            <td style="padding: 8px;">${formatDateTime(end_datetime)}</td>
+          </tr>
+        </table>
       `;
+      const html = renderEmailTemplate({
+        title: "Rezervasyon Güncelleme",
+        name: user.name,
+        content
+      });
       await sendMail(user.email, "Rezervasyon Güncelleme", html);
     }
 
@@ -197,11 +235,15 @@ const deleteReservation = async (req, res) => {
 
     const user = await findUserById(req.auth.id);
     if (user?.email) {
-      const html = `
-        <h3>Merhaba ${user.username},</h3>
+      const content = `
         <p>Rezervasyonunuz iptal edildi.</p>
-        <p><strong>Başlangıç:</strong> ${reservation.start_datetime}</p>
+        <p><strong>Başlangıç:</strong> ${formatDateTime(reservation.start_datetime)}</p>
       `;
+      const html = renderEmailTemplate({
+        title: "Rezervasyon İptali",
+        name: user.name,
+        content
+      });
       await sendMail(user.email, "Rezervasyon İptali", html);
     }
 
@@ -226,7 +268,7 @@ const searchReservationsController = async (req, res) => {
       end_date: req.query.end_date,
     };
 
-    const results = await searchReservations(filters , limit, offset);
+    const results = await searchReservations(filters, limit, offset);
     res.json({ page, limit, results });
   } catch (err) {
     console.error("Filtreleme hatası:", err);
@@ -242,4 +284,3 @@ module.exports = {
   deleteReservation,
   searchReservationsController,
 };
-

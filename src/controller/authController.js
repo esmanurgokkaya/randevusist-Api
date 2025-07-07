@@ -90,12 +90,9 @@ const login = async (req, res) => {
     if (!user || !(await argon2.verify(user.password, password))) {
       return res.status(401).json({ message: "Geçersiz e-posta veya şifre." });
     }
-    console.log("hata burada mı1");
     const accessToken = generateAccessToken(user);
-    console.log("hata burada mı2");
 
     const refreshToken = await generateRefreshToken(user);
-    console.log("hata burada mı3");
 
     return res.json({
       success:true,
