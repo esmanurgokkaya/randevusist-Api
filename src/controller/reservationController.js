@@ -56,6 +56,17 @@ const createReservationController = async (req, res) => {
     const { room_id, start_datetime, end_datetime } = validation.data;
     const user_id = req.auth?.id;
 
+    // Süre kontrolü
+    const startTime = new Date(start_datetime);
+    const endTime = new Date(end_datetime);
+    const durationInHours = (endTime - startTime) / (1000 * 60 * 60);
+    if (durationInHours < 1) {
+      return res.status(400).json({ message: "Rezervasyon süresi en az 1 saat olmalıdır." });
+    }
+    if (durationInHours > 2) {
+      return res.status(400).json({ message: "Rezervasyon süresi en fazla 2 saat olabilir." });
+    }
+
     const start = toMySQLDatetime(start_datetime);
     const end = toMySQLDatetime(end_datetime);
 
@@ -86,8 +97,6 @@ const createReservationController = async (req, res) => {
         name: user.name,
         content
       });
-   
-
       await sendMail(user.email, "Rezervasyon Onayı", html);
     }
 
@@ -153,6 +162,17 @@ const updateReservation = async (req, res) => {
       });
     }
     const { start_datetime, end_datetime } = validation.data;
+
+    // Süre kontrolü
+    const startTime = new Date(start_datetime);
+    const endTime = new Date(end_datetime);
+    const durationInHours = (endTime - startTime) / (1000 * 60 * 60);
+    if (durationInHours < 1) {
+      return res.status(400).json({ message: "Rezervasyon süresi en az 1 saat olmalıdır." });
+    }
+    if (durationInHours > 2) {
+      return res.status(400).json({ message: "Rezervasyon süresi en fazla 2 saat olabilir." });
+    }
 
     const results = await getResById(reservationId);
     if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
