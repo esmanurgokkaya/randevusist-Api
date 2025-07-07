@@ -81,22 +81,23 @@ async function deleteReservationById(reservationId) {
 /**
  * @desc Filtre ve sayfalama ile rezervasyonları getirir
  */
-async function searchReservations(filters, limit, offset) {
+async function searchReservations(filters, limit = 10, offset = 0) {
   let baseSql = `SELECT * FROM availability_calendar WHERE 1=1`;
   const params = [];
 
+  // Oda filtresi varsa
   if (filters.room_id) {
     baseSql += " AND room_id = ?";
     params.push(filters.room_id);
   }
-if (filters.user_id) {
-  baseSql += " AND users LIKE ?";
-  params.push(`%\"${filters.user_id}\"%`);
-}
 
+  // Kullanıcı JSON içinde varsa
+  if (filters.user_id) {
+    baseSql += " AND JSON_CONTAINS(users, ?, '$')";
+    params.push(JSON.stringify(filters.user_id));
+  }
 
-  
-
+  // Tarih aralığı filtreleri
   if (filters.start_date) {
     baseSql += " AND start_datetime >= ?";
     params.push(filters.start_date);
@@ -107,17 +108,18 @@ if (filters.user_id) {
     params.push(filters.end_date);
   }
 
+  // Sıralama ve sayfalama
   baseSql += " ORDER BY start_datetime DESC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
+  // Debug için yazdır
   console.log("SQL:", baseSql);
   console.log("Params:", params);
 
-  const [rows] = await db.execute(baseSql, params);
+  // Sorguyu çalıştır
+  const [rows] = await db.query(baseSql, params);
   return rows;
 }
-
-
 
 
 

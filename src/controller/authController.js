@@ -10,6 +10,7 @@ const {
   findRefreshToken,
   deleteRefreshToken
 } = require("../models/tokenModel");
+const { success } = require("zod/v4");
 
 // ✪ Zod register şeması
 const registerSchema = z.object({
@@ -97,6 +98,7 @@ const login = async (req, res) => {
     console.log("hata burada mı3");
 
     return res.json({
+      success:true,
       message: "Giriş başarılı",
       accessToken,
       refreshToken,

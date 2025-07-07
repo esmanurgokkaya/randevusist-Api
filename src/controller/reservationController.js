@@ -226,7 +226,7 @@ const searchReservationsController = async (req, res) => {
       end_date: req.query.end_date,
     };
 
-    const results = await searchReservations(filters, limit, offset);
+    const results = await searchReservations(filters , limit, offset);
     res.json({ page, limit, results });
   } catch (err) {
     console.error("Filtreleme hatası:", err);
