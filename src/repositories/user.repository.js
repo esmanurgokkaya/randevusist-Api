@@ -2,7 +2,8 @@ const UserModel = require('../models/user.model'); // prisma.user
 
 class UserRepository {
   /**
-   * Yeni kullanıcı oluştur
+   * 👤 Yeni kullanıcı oluşturur
+   * - Kayıt (register) işlemi sırasında çağrılır
    */
   async createUser({ name, lastname, email, phone, password, role = 'user' }) {
     return await UserModel.create({
@@ -11,7 +12,8 @@ class UserRepository {
   }
 
   /**
-   * E-posta ile kullanıcı getir
+   * 📧 E-posta adresiyle kullanıcıyı getir
+   * - Giriş (login) sırasında kullanılır
    */
   async findUserByEmail(email) {
     return await UserModel.findUnique({
@@ -20,7 +22,8 @@ class UserRepository {
   }
 
   /**
-   * ID ile kullanıcı getir
+   * 🔍 Kullanıcıyı ID ile getir
+   * - Profil işlemleri ve rezervasyonlar için kullanılır
    */
   async findUserById(id) {
     return await UserModel.findUnique({
@@ -29,7 +32,8 @@ class UserRepository {
   }
 
   /**
-   * Kullanıcıyı ID ile sil
+   * ❌ Kullanıcıyı sil
+   * - Profil silme işlemi
    */
   async deleteUserById(id) {
     return await UserModel.delete({
@@ -38,7 +42,8 @@ class UserRepository {
   }
 
   /**
-   * Kullanıcı bilgilerini güncelle
+   * ✏️ Kullanıcı bilgilerini güncelle
+   * - Profil güncelleme formunda kullanılır
    */
   async updateUserById(id, { name, lastname, email, phone, password }) {
     return await UserModel.update({
@@ -48,7 +53,8 @@ class UserRepository {
   }
 
   /**
-   * Aynı e-posta başka bir kullanıcıda var mı?
+   * 📛 Bu e-posta başka bir kullanıcıya mı ait?
+   * - Email benzersizliği kontrolü için kullanılır
    */
   async isEmailTakenByAnotherUser(email, currentUserId) {
     const user = await UserModel.findFirst({
@@ -57,11 +63,12 @@ class UserRepository {
         NOT: { id: currentUserId }
       }
     });
-    return !!user;
+    return !!user; // user varsa true döner
   }
 
   /**
-   * Tüm kullanıcıları getir
+   * 📋 Tüm kullanıcıları getir
+   * - Admin panelinde kullanıcı listesi
    */
   async getAllUsers() {
     return await UserModel.findMany({
@@ -70,15 +77,18 @@ class UserRepository {
   }
 
   /**
-   * Arama + sayfalama + filtreleme (opsiyonel)
+   * 🔍 Arama ve sayfalama (isteğe bağlı filtre)
+   * - Admin panelinde kullanıcı filtreleme aracı
    */
   async searchUsers(filters = {}, page = 1, limit = 10) {
     const where = {};
 
+    // İsim araması
     if (filters.name) {
-      where.name = { contains: filters.name, mode: 'insensitive' };
+      where.name = { contains: filters.name, mode: 'insensitive' }; // büyük/küçük harfe duyarsız
     }
 
+    // E-posta araması
     if (filters.email) {
       where.email = { contains: filters.email, mode: 'insensitive' };
     }
@@ -105,5 +115,5 @@ class UserRepository {
   }
 }
 
+// Tüm sistemde tek bir instance olarak kullanılmak üzere dışa aktarılır
 module.exports = new UserRepository();
- 

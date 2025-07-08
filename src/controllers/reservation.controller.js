@@ -1,13 +1,15 @@
-// controllers/reservation.controller.js
-const z = require("zod");
-const reservationService = require("../services/reservation.service");
-const { findUserById } = require("../repositories/user.repository");
-const sendMail = require("../services/mail.service"); // Güncel hale geldi
-const renderEmailTemplate = require("../utils/renderTemplate");
+// Gerekli modülleri import ediyoruz
+const z = require("zod"); // Veri doğrulama kütüphanesi
+const reservationService = require("../services/reservation.service"); // Rezervasyon işlemleri
+const { findUserById } = require("../repositories/user.repository"); // Kullanıcı sorgusu
+const sendMail = require("../services/mail.service"); // E-posta gönderme
+const renderEmailTemplate = require("../utils/renderTemplate"); // HTML şablon oluşturucu
 
+// Kütüphanenin açık olduğu saat aralığı (sadece bu saatler arasında rezervasyon yapılabilir)
 const LIBRARY_START = 9;
 const LIBRARY_END = 16;
 
+// Form verilerinin doğrulama şeması
 const reservationSchema = z.object({
   roomId: z.number(),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -17,34 +19,40 @@ const reservationSchema = z.object({
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
 });
 
+// "10:30" gibi saat stringlerini sayıya çevirir: 10.5 gibi
 function parseTime(str) {
   const [h, m] = str.split(":").map(Number);
   return h + m / 60;
 }
 
+// Girilen saatlerin kütüphane saat aralığında olup olmadığını kontrol eder
 function isWithinLibraryHours(start, end) {
   return start >= LIBRARY_START && end <= LIBRARY_END && end > start;
 }
 
+// ✅ REZERVASYON OLUŞTURMA
 exports.createReservation = async (req, res) => {
   try {
+    // Gelen verileri kontrol et
     const parsed = reservationSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: "Veri hatalı", errors: parsed.error.errors });
     }
 
     const { roomId, date, startTime, endTime } = parsed.data;
-    const userId = req.auth?.id;
+    const userId = req.auth?.id; // JWT ile gelen kullanıcı ID
 
     const startHour = parseTime(startTime);
     const endHour = parseTime(endTime);
 
+    // Kütüphane saatleri dışındaysa hata dön
     if (!isWithinLibraryHours(startHour, endHour)) {
       return res.status(400).json({
         message: `Rezervasyon saatleri ${LIBRARY_START}:00 - ${LIBRARY_END}:00 aralığında ve en az 1 saat olmalıdır.`,
       });
     }
 
+    // Veriyi servis katmanına gönder
     await reservationService.createReservation({
       roomId,
       users: [userId],
@@ -53,6 +61,7 @@ exports.createReservation = async (req, res) => {
       endTime,
     });
 
+    // Rezervasyon sonrası kullanıcıya e-posta gönder
     const user = await findUserById(userId);
     if (user?.email) {
       const content = `
@@ -72,7 +81,7 @@ exports.createReservation = async (req, res) => {
       const html = renderEmailTemplate({
         title: "Rezervasyon Onayı",
         name: user.name,
-        content
+        content,
       });
 
       await sendMail(user.email, "Rezervasyon Onayı", html);
@@ -84,7 +93,8 @@ exports.createReservation = async (req, res) => {
     res.status(500).json({ message: "Sunucu hatası", error: err.message });
   }
 };
- 
+
+// ✅ KULLANICININ KENDİ REZERVASYONLARI
 exports.getMyReservations = async (req, res) => {
   try {
     const userId = req.auth?.id;
@@ -96,6 +106,7 @@ exports.getMyReservations = async (req, res) => {
   }
 };
 
+// ✅ ID'YE GÖRE TEK BİR REZERVASYON DETAYI
 exports.getReservationById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -110,6 +121,7 @@ exports.getReservationById = async (req, res) => {
   }
 };
 
+// ✅ REZERVASYON GÜNCELLEME
 exports.updateReservation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -123,6 +135,7 @@ exports.updateReservation = async (req, res) => {
   }
 };
 
+// ✅ REZERVASYON SİLME
 exports.deleteReservation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -134,6 +147,7 @@ exports.deleteReservation = async (req, res) => {
   }
 };
 
+// ✅ REZERVASYON ARAMA (Tarih & oda bazlı filtreleme, sayfalama)
 exports.searchReservations = async (req, res) => {
   try {
     const { date, roomId, page = 1, limit = 10 } = req.query;

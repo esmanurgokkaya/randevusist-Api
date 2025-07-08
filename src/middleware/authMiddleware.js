@@ -1,44 +1,52 @@
+// express-jwt paketi ile JWT doğrulaması yapılır
 const { expressjwt: jwt } = require("express-jwt");
 
-// 🔐 Access token doğrulama
+// 🔐 Access token'ı doğrulayan middleware
+// Kullanıcının gönderdiği JWT token'ı kontrol eder
+// Eğer geçerliyse token'daki payload, req.auth içine yerleştirilir
 const verifyToken = jwt({
-  secret: process.env.JWT_SECRET,
-  algorithms: ["HS256"],
-  requestProperty: "auth", // req.auth altında taşınır
+  secret: process.env.JWT_SECRET,    // JWT doğrulamak için gizli anahtar (env dosyasından alınır)
+  algorithms: ["HS256"],             // Kullanılan algoritma: HMAC SHA256
+  requestProperty: "auth",           // Doğrulanan token bilgileri req.auth içine yazılır
 });
 
-// ❌ Hata yakalayıcı
+// ❌ Token doğrulama sırasında bir hata oluşursa bunu yakalayan middleware
+// Genellikle token geçersiz, süresi dolmuş ya da gönderilmemişse çalışır
 const handleAuthError = (err, req, res, next) => {
   if (err.name === "UnauthorizedError") {
     return res.status(401).json({ message: "Yetkisiz erişim: Token geçersiz ya da eksik." });
   }
-  next(err);
+  next(err); // Hata JWT ile ilgili değilse diğer error handler'lara geçilir
 };
 
-// 🔐 Belirli rolü gerektiren işlemler için middleware
+// 🔐 Belirli bir role sahip kullanıcıların erişimine izin veren middleware
+// Örnek: yalnızca admin rolüne sahip kullanıcılar için → requireRole('admin')
 const requireRole = (role) => {
   return (req, res, next) => {
+    // Token yoksa ya da token içindeki role alanı istenen rolle uyuşmuyorsa
     if (!req.auth || req.auth.role !== role) {
       return res.status(403).json({ message: `Bu işlem için ${role} yetkisi gerekir.` });
     }
-    next();
+    next(); // Rol uygun, işlemi devam ettir
   };
 };
 
-// 🔄 Birden fazla rol kabul eden flexible middleware (opsiyonel)
+// 🔄 Birden fazla role izin veren esnek middleware
+// Örnek: hem 'admin' hem de 'employee' rolü olanlar erişebilsin → requireAnyRole(['admin', 'employee'])
 const requireAnyRole = (roles = []) => {
   return (req, res, next) => {
+    // Token yoksa ya da rol dizisinde tanımlı roller arasında yoksa
     if (!req.auth || !roles.includes(req.auth.role)) {
       return res.status(403).json({ message: "Bu işlem için yetkiniz yok." });
     }
-    next();
+    next(); // Rollerden biri eşleşti, devam
   };
 };
 
+// Middleware'ler dışa aktarılır
 module.exports = {
-  verifyToken,
-  handleAuthError,
-  requireRole,       // Tek rol: örnek → requireRole('admin')
-  requireAnyRole     // Çoklu rol: örnek → requireAnyRole(['admin', 'employee'])
+  verifyToken,       // JWT doğrulama
+  handleAuthError,   // Hata yönetimi
+  requireRole,       // Tek rol kontrolü
+  requireAnyRole     // Çoklu rol kontrolü
 };
- 

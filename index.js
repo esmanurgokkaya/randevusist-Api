@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 // const helmet = require('helmet');
 // const morgan = require('morgan');
+const errorHandler = require('./src/middleware/errorHandler');
 
 const { handleAuthError } = require('./src/middleware/authMiddleware');
 const authRoutes = require('./src/routes/auth.route');
@@ -27,7 +28,7 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/rooms', roomRoutes);
 app.use('/', reservationRoutes); // rezervasyon rotası içinde /reservations zaten var
-
+app.use(errorHandler);
 // ----------------------
 // ⚠️ Auth Error Yakalama
 // ----------------------
