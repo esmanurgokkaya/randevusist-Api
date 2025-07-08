@@ -13,3 +13,4 @@ function renderEmailTemplate({ title, name, content }) {
 }
 
 module.exports = renderEmailTemplate;
+ 

@@ -32,3 +32,4 @@ async function sendMail(to, subject, htmlContent) {
 }
 
 module.exports = sendMail;
+ 

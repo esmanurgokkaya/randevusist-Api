@@ -41,3 +41,4 @@ module.exports = {
   requireRole,       // Tek rol: örnek → requireRole('admin')
   requireAnyRole     // Çoklu rol: örnek → requireAnyRole(['admin', 'employee'])
 };
+ 

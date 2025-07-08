@@ -37,3 +37,4 @@ router.patch('/:id/status', verifyToken, requireRole('admin'), roomController.up
 router.delete('/:id', verifyToken, requireRole('admin'), roomController.deleteRoom);
 
 module.exports = router;
+ 

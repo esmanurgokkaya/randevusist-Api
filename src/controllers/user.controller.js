@@ -65,3 +65,4 @@ exports.updateUserProfile = async (req, res) => {
     return res.status(500).json({ message: 'Sunucu hatası: profil güncellenemedi.' });
   }
 };
+ 

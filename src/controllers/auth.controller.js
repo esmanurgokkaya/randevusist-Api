@@ -70,3 +70,4 @@ exports.logout = async (req, res) => {
   if (token) await authService.logout(token);
   res.json({ message: 'Çıkış başarılı' });
 };
+ 

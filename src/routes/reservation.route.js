@@ -23,3 +23,4 @@ router.delete('/reservations/:id', verifyToken, deleteReservation);         // R
 router.get('/reservations', verifyToken, searchReservations);               // Filtreli listeleme (sayfa, tarih vs.)
 
 module.exports = router;
+ 
