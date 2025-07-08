@@ -13,3 +13,4 @@ node_modules/
 # IDE/editor
 .vscode/
 .idea/
+/src/generated/prisma

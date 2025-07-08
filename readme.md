@@ -15,4 +15,5 @@ bu proje v2 gibi olacak proje modern bir yapıya getirilecek paketler en güncel
     3.8) panel istatistik 
     3.9) oda boşa alma gibi işlemler kullanılamaz vs 
     3.10) çalışan tarafından rezervasyon ekleme
+    3.11) log yapısı kur 
     

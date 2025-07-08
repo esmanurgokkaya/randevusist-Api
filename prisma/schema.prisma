@@ -1,0 +1,70 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  name     String
+  lastname String
+  email    String  @unique
+  phone    String
+  password String
+  role     String  @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reservations AvailabilityCalendar[] @relation("UserReservations")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  token     String   @unique
+  expiresAt DateTime
+}
+
+enum RoomStatus {
+  available     // Kullanılabilir
+  in_use        // Şu anda kullanımda
+  maintenance   // Onarımda
+  closed        // Kapalı veya devre dışı
+}
+
+model Room {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  floor       Int?
+  capacity    Int?
+  imageUrl    String?
+  status      RoomStatus @default(available)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model AvailabilityCalendar {
+  id         Int      @id @default(autoincrement())
+  room       Room     @relation(fields: [roomId], references: [id])
+  roomId     Int
+  date       DateTime // Sadece gün bilgisi tutulur (örn. 2025-07-08 00:00:00)
+  startTime  String   // "09:00" gibi saat formatında
+  endTime    String   // "16:00" gibi saat formatında
+  users      Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+//yeni eklenecek yapı 
+model ReservationSettings {
+  id         Int      @id @default(autoincrement())
+  dayOfWeek  Int      // 0 = Pazar, 1 = Pazartesi, ..., 6 = Cumartesi
+  startTime  String   // "09:00"
+  endTime    String   // "16:00"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
