@@ -21,7 +21,11 @@ app.use(express.json());
 
 // 🔓 CORS ayarları - Next.js frontend erişimine izin ver
 app.use(cors({
-  origin: 'http://localhost:3000', // Frontend adresin
+  origin: 'http://localhost:3000',  // Frontend adresin
+  credentials: true               // Eğer cookie-based auth varsa true olmalı
+}));
+app.use(cors({
+  origin: 'http://localhost:127.0.0.1:80',  // Frontend adresin
   credentials: true               // Eğer cookie-based auth varsa true olmalı
 }));
 
