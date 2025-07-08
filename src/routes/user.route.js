@@ -5,7 +5,7 @@ const {
   updateUserProfile
 } = require('../controllers/user.controller'); // ✅ yeni controller dosyasına göre isim değişikliği
 
-const { verifyToken, handleAuthError } = require('../middleware/authMiddleware');
+const { verifyToken, handleAuthError } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 

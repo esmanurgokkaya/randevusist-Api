@@ -3,30 +3,47 @@ const userService = require('../services/user.service');
 const z = require('zod');
 
 // Kullanıcı profil güncelleme işlemleri için Zod doğrulama şeması tanımlanıyor
-// Bu şema, frontend'den gelen verilerin doğruluğunu kontrol eder
 const updateUserSchema = z.object({
-  name: z.string().min(3).optional(),        // En az 3 karakterli, opsiyonel isim
-  lastname: z.string().min(2).optional(),    // En az 2 karakterli, opsiyonel soyisim
-  email: z.string().email().optional(),      // Geçerli e-posta formatı, opsiyonel
-  phone: z.string().optional(),              // Telefon numarası (herhangi bir string olabilir), opsiyonel
-  oldPassword: z.string().min(6).optional(), // Şifre değiştirmek istenirse eski şifre gerekli
-  newPassword: z.string()                    // Yeni şifre belirli kurallara uymalı
+  name: z.string().min(3).optional(),
+  lastname: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  oldPassword: z.string().min(6).optional(),
+  newPassword: z.string()
     .min(6)
-    .regex(/[A-Z]/)                          // En az bir büyük harf
-    .regex(/[a-z]/)                          // En az bir küçük harf
-    .regex(/[0-9]/)                          // En az bir rakam
-    .regex(/[!@#$%^&*]/)                     // En az bir özel karakter
+    .regex(/[A-Z]/)
+    .regex(/[a-z]/)
+    .regex(/[0-9]/)
+    .regex(/[!@#$%^&*]/)
     .optional(),
 });
 
+/**
+ * @swagger
+ * tags:
+ *   - name: User
+ *     description: Kullanıcı işlemleri (profil görüntüleme, güncelleme, silme)
+ */
 
-// 👤 Kullanıcının kendi profilini getirme endpoint'i
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Kullanıcı profilini getir
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Kullanıcı profili getirildi
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ *       500:
+ *         description: Sunucu hatası
+ */
 exports.getUserProfile = async (req, res) => {
   try {
-    // Auth middleware'den gelen kullanıcı ID'si kullanılarak veri çekilir
     const user = await userService.getUserProfile(req.auth.id);
-
-    // Kullanıcı bulunduysa bilgileri geri döner
     return res.json({
       message: 'Kullanıcı profili başarıyla getirildi.',
       user: {
@@ -39,48 +56,87 @@ exports.getUserProfile = async (req, res) => {
       }
     });
   } catch (err) {
-    // Kullanıcı bulunamazsa özel hata mesajı döner
-    if (err.message === 'NOT_FOUND') return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
-    
-    // Diğer tüm hatalar için genel sunucu hatası mesajı
+    if (err.message === 'NOT_FOUND')
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+
     return res.status(500).json({ message: 'Sunucu hatası.' });
   }
 };
 
-
-// ❌ Kullanıcı hesabını silme endpoint’i
+/**
+ * @swagger
+ * /users/me:
+ *   delete:
+ *     summary: Kullanıcı hesabını sil
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Hesap başarıyla silindi
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ *       500:
+ *         description: Sunucu hatası
+ */
 exports.deleteUserProfile = async (req, res) => {
   try {
-    // Auth middleware’den gelen kullanıcı ID ile servis katmanına silme talebi gönderilir
     await userService.deleteUserProfile(req.auth.id);
-    
-    // Başarılı silme sonrası mesaj
     return res.json({ message: 'Hesap başarıyla silindi.' });
   } catch (err) {
-    if (err.message === 'NOT_FOUND') return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+    if (err.message === 'NOT_FOUND')
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+
     return res.status(500).json({ message: 'Sunucu hatası.' });
   }
 };
 
-
-// 📝 Kullanıcı bilgilerini güncelleme endpoint’i
+/**
+ * @swagger
+ * /users/me:
+ *   put:
+ *     summary: Kullanıcı profilini güncelle
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               lastname: { type: string }
+ *               email: { type: string, format: email }
+ *               phone: { type: string }
+ *               oldPassword: { type: string }
+ *               newPassword: { type: string }
+ *     responses:
+ *       200:
+ *         description: Profil başarıyla güncellendi
+ *       400:
+ *         description: Geçersiz veri veya eksik parola bilgisi
+ *       401:
+ *         description: Eski parola hatalı
+ *       404:
+ *         description: Kullanıcı bulunamadı
+ *       409:
+ *         description: Bu e-posta başka kullanıcıya ait
+ *       500:
+ *         description: Profil güncellenemedi
+ */
 exports.updateUserProfile = async (req, res) => {
-  // Gelen veriler Zod ile validasyondan geçirilir
   const validation = updateUserSchema.safeParse(req.body);
-  
-  // Eğer doğrulama başarısızsa 400 Bad Request ve hatalar döner
+
   if (!validation.success) {
     return res.status(400).json({ message: 'Geçersiz veri.', errors: validation.error.errors });
   }
 
   try {
-    // Validasyonu geçen verilerle servis katmanından güncelleme yapılır
     await userService.updateUserProfile(req.auth.id, validation.data);
-
-    // Başarılı güncelleme sonrası kullanıcıya bilgi verilir
     return res.json({ message: 'Profil başarıyla güncellendi.' });
   } catch (err) {
-    // Belirli hata senaryoları ayrı ayrı ele alınır ve uygun HTTP kodlarıyla döner
     if (err.message === 'NOT_FOUND')
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
 
@@ -93,7 +149,6 @@ exports.updateUserProfile = async (req, res) => {
     if (err.message === 'EMAIL_ALREADY_USED')
       return res.status(409).json({ message: 'Bu e-posta başka kullanıcıya ait.' });
 
-    // Diğer beklenmeyen hatalarda genel mesaj
     return res.status(500).json({ message: 'Sunucu hatası: profil güncellenemedi.' });
   }
 };

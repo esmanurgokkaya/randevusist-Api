@@ -30,7 +30,40 @@ function isWithinLibraryHours(start, end) {
   return start >= LIBRARY_START && end <= LIBRARY_END && end > start;
 }
 
-// ✅ REZERVASYON OLUŞTURMA
+/**
+ * @swagger
+ * tags: 
+ *   name: Reservation
+ *   description: rezervasyon ekleme işlemi 
+ */
+
+/**
+  * @swagger
+  * /reservations:
+  *  post:
+  *     summary: Yeni rezervasyon kaydı
+  *     tags: [Reservation]
+  *     requestBody:
+  *       required: true
+  *       content:
+  *         application/json:
+  *           schema:
+  *             type: object
+  *             required: [roomId, date, startTime, endTime]
+  *             properties:
+  *               roomId: { type: Int }
+  *               date: { type: DateTime }
+  *               startTime: { type: string }
+  *               endTime: { type: string }
+  *             
+  *     responses:
+  *       201:
+  *         description: Rezervasyon oluşturuldu.
+  *       409:
+  *         description: E-posta zaten kayıtlı
+  *       400:
+  *         description: veri hatalı
+*/
 exports.createReservation = async (req, res) => {
   try {
     // Gelen verileri kontrol et
@@ -94,8 +127,36 @@ exports.createReservation = async (req, res) => {
   }
 };
 
-// ✅ KULLANICININ KENDİ REZERVASYONLARI
-exports.getMyReservations = async (req, res) => {
+/**
+  * @swagger
+  * /reservations/me:
+  *  post:
+  *     summary: Kullanıcının rezervasyonları
+  *     tags: [Reservation]
+  *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id: { type: Int }
+ *               roomId: { type: string }
+ *               date: { type: string, format: email }
+ *               startTime: { type: string }
+ *               endTime: { type: string }
+ *               users: { type: string }
+  *             
+  *     responses:
+  *       201:
+  *         description: Rezervasyon oluşturuldu.
+  *       409:
+  *         description: E-posta zaten kayıtlı
+  *       400:
+  *         description: veri hatalı
+*/exports.getMyReservations = async (req, res) => {
   try {
     const userId = req.auth?.id;
     const reservations = await reservationService.getReservationsByUser(userId);

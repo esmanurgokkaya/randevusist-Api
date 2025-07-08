@@ -3,9 +3,11 @@ const express = require('express');
 const cors = require('cors');
 // const helmet = require('helmet');
 // const morgan = require('morgan');
-const errorHandler = require('./src/middleware/errorHandler');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./src/docs/swagger');
 
-const { handleAuthError } = require('./src/middleware/authMiddleware');
+const errorHandler = require('./src/middleware/errorHandler');
+const { handleAuthError } = require('./src/middleware/auth.middleware');
 const authRoutes = require('./src/routes/auth.route');
 const roomRoutes = require('./src/routes/room.route');
 const reservationRoutes = require('./src/routes/reservation.route');
@@ -24,6 +26,7 @@ app.use(express.urlencoded({ extended: true })); // Form verisi
 // ----------------------
 // 📌 API Rotaları
 // ----------------------
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/rooms', roomRoutes);

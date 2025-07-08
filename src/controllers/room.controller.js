@@ -1,7 +1,14 @@
-const roomService = require('../services/room.service');
-const z = require('zod'); // Gelen verilerin doğruluğunu kontrol etmek için kullanılır
+/**
+ * @swagger
+ * tags:
+ *   - name: Room
+ *     description: Oda işlemleri (oluştur, listele, sil vb.)
+ */
 
-// 🧪 Oda oluşturma ve güncelleme işlemlerinde gelen verileri kontrol etmek için bir şema tanımlıyoruz
+const roomService = require('../services/room.service');
+const z = require('zod');
+
+// ✅ Oda doğrulama şeması
 const roomSchema = z.object({
   name: z.string().min(2, "Oda adı en az 2 karakter olmalı."),
   description: z.string().optional(),
@@ -10,7 +17,18 @@ const roomSchema = z.object({
   status: z.enum(["available", "maintenance", "unavailable"]).default("available")
 });
 
-// 🔍 Tüm odaları getirir (Admin ve kullanıcılar görür)
+/**
+ * @swagger
+ * /rooms:
+ *   get:
+ *     summary: Tüm odaları getir
+ *     tags: [Room]
+ *     responses:
+ *       200:
+ *         description: Oda listesi başarıyla getirildi
+ *       500:
+ *         description: Sunucu hatası
+ */
 const listRooms = async (req, res) => {
   try {
     const rooms = await roomService.listAllRooms();
@@ -21,7 +39,31 @@ const listRooms = async (req, res) => {
   }
 };
 
-// 📦 Oda araması yapar, filtreleme ve sayfalama destekler (admin panel için)
+/**
+ * @swagger
+ * /rooms/search:
+ *   get:
+ *     summary: Oda araması yap (filtre + sayfalama)
+ *     tags: [Room]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *       - in: query
+ *         name: name
+ *         schema: { type: string }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [available, maintenance, unavailable] }
+ *     responses:
+ *       200:
+ *         description: Filtreli oda listesi
+ *       500:
+ *         description: Hata oluştu
+ */
 const searchRooms = async (req, res) => {
   const { page = 1, limit = 10, name, status } = req.query;
   const filters = {};
@@ -38,9 +80,35 @@ const searchRooms = async (req, res) => {
   }
 };
 
-// 🆕 Yeni oda ekler (sadece admin tarafından yapılabilir)
+/**
+ * @swagger
+ * /rooms:
+ *   post:
+ *     summary: Yeni oda oluştur
+ *     tags: [Room]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, capacity]
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               capacity: { type: integer }
+ *               imageUrl: { type: string }
+ *               status: { type: string, enum: [available, maintenance, unavailable] }
+ *     responses:
+ *       201:
+ *         description: Oda oluşturuldu
+ *       400:
+ *         description: Geçersiz veri
+ *       500:
+ *         description: Sunucu hatası
+ */
 const createRoom = async (req, res) => {
-  const validation = roomSchema.safeParse(req.body); // Gelen veri şemaya uygun mu kontrol eder
+  const validation = roomSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({ success: false, errors: validation.error.errors });
   }
@@ -54,10 +122,39 @@ const createRoom = async (req, res) => {
   }
 };
 
-// 📝 Mevcut bir odayı günceller (admin)
+/**
+ * @swagger
+ * /rooms/{id}:
+ *   put:
+ *     summary: Odayı güncelle
+ *     tags: [Room]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               capacity: { type: integer }
+ *               imageUrl: { type: string }
+ *               status: { type: string, enum: [available, maintenance, unavailable] }
+ *     responses:
+ *       200:
+ *         description: Oda güncellendi
+ *       400:
+ *         description: Geçersiz veri
+ *       500:
+ *         description: Sunucu hatası
+ */
 const updateRoom = async (req, res) => {
   const { id } = req.params;
-  const validation = roomSchema.partial().safeParse(req.body); // Güncelleme için tüm alanlar zorunlu değil
+  const validation = roomSchema.partial().safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({ success: false, errors: validation.error.errors });
   }
@@ -71,12 +168,38 @@ const updateRoom = async (req, res) => {
   }
 };
 
-// 🔄 Odanın durumunu günceller (örneğin: "maintenance", "available" gibi)
+/**
+ * @swagger
+ * /rooms/{id}/status:
+ *   patch:
+ *     summary: Oda durumunu güncelle
+ *     tags: [Room]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [available, maintenance, unavailable] }
+ *     responses:
+ *       200:
+ *         description: Durum güncellendi
+ *       400:
+ *         description: Geçersiz durum
+ *       500:
+ *         description: Güncelleme hatası
+ */
 const updateRoomStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  // Geçerli status değilse reddet
   if (!["available", "maintenance", "unavailable"].includes(status)) {
     return res.status(400).json({ success: false, message: "Geçersiz durum." });
   }
@@ -90,7 +213,23 @@ const updateRoomStatus = async (req, res) => {
   }
 };
 
-// ❌ Odayı siler (admin)
+/**
+ * @swagger
+ * /rooms/{id}:
+ *   delete:
+ *     summary: Oda sil
+ *     tags: [Room]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Oda silindi
+ *       500:
+ *         description: Silme hatası
+ */
 const deleteRoom = async (req, res) => {
   const { id } = req.params;
   try {
@@ -102,12 +241,38 @@ const deleteRoom = async (req, res) => {
   }
 };
 
-// 📸 Odanın görsel URL’ini günceller (admin)
+/**
+ * @swagger
+ * /rooms/{id}/image:
+ *   patch:
+ *     summary: Oda görselini güncelle
+ *     tags: [Room]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [imageUrl]
+ *             properties:
+ *               imageUrl: { type: string, format: uri }
+ *     responses:
+ *       200:
+ *         description: Görsel güncellendi
+ *       400:
+ *         description: Geçersiz URL
+ *       500:
+ *         description: Güncelleme hatası
+ */
 const updateRoomImage = async (req, res) => {
   const { id } = req.params;
   const { imageUrl } = req.body;
 
-  // Basit URL kontrolü
   if (!imageUrl || !imageUrl.startsWith('http')) {
     return res.status(400).json({ success: false, message: "Geçerli bir görsel URL girin." });
   }
@@ -121,7 +286,18 @@ const updateRoomImage = async (req, res) => {
   }
 };
 
-// 📊 Kullanıcı arayüzünde sadece "available" (müsait) odaları gösterir
+/**
+ * @swagger
+ * /rooms/available:
+ *   get:
+ *     summary: Müsait odaları getir (status available)
+ *     tags: [Room]
+ *     responses:
+ *       200:
+ *         description: Uygun odalar getirildi
+ *       500:
+ *         description: Hata oluştu
+ */
 const getAvailableRooms = async (req, res) => {
   try {
     const rooms = await roomService.listRoomsByStatus("available");
@@ -132,7 +308,6 @@ const getAvailableRooms = async (req, res) => {
   }
 };
 
-// Dışa aktarım
 module.exports = {
   listRooms,
   searchRooms,

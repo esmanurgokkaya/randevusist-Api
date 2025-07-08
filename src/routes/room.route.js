@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const roomController = require('../controllers/room.controller');
-const { verifyToken, requireRole } = require('../middleware/authMiddleware');
+const { verifyToken, requireRole } = require('../middleware/auth.middleware');
 
 // ───────────────────────────────
 // 👤 Public Routes (Client Access)

@@ -8,7 +8,7 @@ const {
   searchReservations
 } = require('../controllers/reservation.controller');
 
-const { verifyToken } = require('../middleware/authMiddleware');
+const { verifyToken } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
