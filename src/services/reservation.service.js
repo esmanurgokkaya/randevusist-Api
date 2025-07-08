@@ -23,6 +23,9 @@ async function deleteReservation(id) {
 async function searchReservations(filters, page, limit) {
   return await repo.search(filters, page, limit);
 }
+async function getReservationById(id) {
+  return await repo.getById(id);
+}
 
 module.exports = {
   createReservation,
@@ -31,5 +34,6 @@ module.exports = {
   updateReservation,
   deleteReservation,
   searchReservations,
+  getReservationById,
 };
  

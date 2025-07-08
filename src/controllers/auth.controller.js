@@ -1,3 +1,4 @@
+const { success } = require('zod/v4');
 const authService = require('../services/auth.service');
 const z = require('zod');
 
@@ -24,7 +25,7 @@ exports.register = async (req, res) => {
   try {
     const data = registerSchema.parse(req.body);
     const user = await authService.register(data);
-    res.status(201).json({ message: 'Kayıt başarılı', userId: user.id });
+    res.status(201).json({ sucsess : true, message: 'Kayıt başarılı'});
   } catch (err) {
     if (err.message === 'EMAIL_EXISTS') return res.status(409).json({ message: 'Bu e-posta zaten kayıtlı' });
     if (err.errors) return res.status(400).json({ message: 'Geçersiz veri', errors: err.errors });
@@ -37,6 +38,7 @@ exports.login = async (req, res) => {
     const data = loginSchema.parse(req.body);
     const result = await authService.login(data.email, data.password);
     res.json({
+      success: true,
       message: 'Giriş başarılı',
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,

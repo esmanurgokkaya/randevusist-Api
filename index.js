@@ -24,7 +24,7 @@ app.use(express.urlencoded({ extended: true })); // Form verisi
 // 📌 API Rotaları
 // ----------------------
 app.use('/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/users', userRoutes);
 app.use('/rooms', roomRoutes);
 app.use('/', reservationRoutes); // rezervasyon rotası içinde /reservations zaten var
 

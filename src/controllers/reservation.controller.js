@@ -10,7 +10,7 @@ const LIBRARY_END = 16;
 
 const reservationSchema = z.object({
   roomId: z.number(),
-  startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Geçerli bir tarih girin.",
   }),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
@@ -33,7 +33,7 @@ exports.createReservation = async (req, res) => {
       return res.status(400).json({ message: "Veri hatalı", errors: parsed.error.errors });
     }
 
-    const { roomId, startDate, startTime, endTime } = parsed.data;
+    const { roomId, date, startTime, endTime } = parsed.data;
     const userId = req.auth?.id;
 
     const startHour = parseTime(startTime);
@@ -48,7 +48,7 @@ exports.createReservation = async (req, res) => {
     await reservationService.createReservation({
       roomId,
       users: [userId],
-      startDate: new Date(startDate),
+      date: new Date(date),
       startTime,
       endTime,
     });
@@ -60,7 +60,7 @@ exports.createReservation = async (req, res) => {
         <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
           <tr>
             <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Tarih:</td>
-            <td style="padding: 8px;">${startDate}</td>
+            <td style="padding: 8px;">${date}</td>
           </tr>
           <tr>
             <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Saat:</td>
@@ -85,3 +85,67 @@ exports.createReservation = async (req, res) => {
   }
 };
  
+exports.getMyReservations = async (req, res) => {
+  try {
+    const userId = req.auth?.id;
+    const reservations = await reservationService.getReservationsByUser(userId);
+    res.json({ success: true, data: reservations });
+  } catch (err) {
+    console.error("Kullanıcı rezervasyonlarını getirme hatası:", err);
+    res.status(500).json({ message: "Rezervasyonlar getirilemedi." });
+  }
+};
+
+exports.getReservationById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reservation = await reservationService.getReservationById(id);
+    if (!reservation) {
+      return res.status(404).json({ message: "Rezervasyon bulunamadı." });
+    }
+    res.json({ success: true, data: reservation });
+  } catch (err) {
+    console.error("Rezervasyon detayı hatası:", err);
+    res.status(500).json({ message: "Detay getirilemedi." });
+  }
+};
+
+exports.updateReservation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const updated = await reservationService.updateReservation(id, updates);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error("Rezervasyon güncelleme hatası:", err);
+    res.status(500).json({ message: "Güncelleme başarısız." });
+  }
+};
+
+exports.deleteReservation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await reservationService.deleteReservation(id);
+    res.json({ success: true, message: "Rezervasyon silindi." });
+  } catch (err) {
+    console.error("Rezervasyon silme hatası:", err);
+    res.status(500).json({ message: "Silme başarısız." });
+  }
+};
+
+exports.searchReservations = async (req, res) => {
+  try {
+    const { date, roomId, page = 1, limit = 10 } = req.query;
+    const filters = {};
+
+    if (date) filters.date = date;
+    if (roomId) filters.roomId = Number(roomId);
+
+    const result = await reservationService.searchReservations(filters, Number(page), Number(limit));
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Rezervasyon arama hatası:", err);
+    res.status(500).json({ message: "Arama başarısız." });
+  }
+};
