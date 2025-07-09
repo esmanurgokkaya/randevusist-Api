@@ -420,7 +420,7 @@ const deleteReservation = async (req, res) => {
  * @swagger
  * /reservations/reservations:
  *   get:
- *     summary: Search reservations with filters (admin or employee only)
+ *     summary: Search reservations with filters
  *     tags: [Reservations]
  *     security:
  *       - bearerAuth: []
