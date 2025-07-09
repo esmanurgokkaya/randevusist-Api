@@ -114,13 +114,23 @@ const createReservationController = async (req, res) => {
 const getMyReservationsController = async (req, res) => {
   try {
     const user_id = req.auth?.id;
-    const results = await getReservationsByUser(user_id);
-    res.json({ reservations: results });
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const filters = { user_id };
+
+    const results = await searchReservations(filters, limit, offset);
+
+    res.json({ page, limit, results });
   } catch (err) {
     console.error("Rezervasyonları getirirken hata:", err);
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
+
+
 
 const getReservationById = async (req, res) => {
   try {
