@@ -100,7 +100,7 @@ async function deleteReservationById(reservationId) {
 /**
  * @desc Filtre ve sayfalama ile rezervasyonları getirir
  */
-async function searchReservations(filters, limit = 10, offset = 0) {
+async function searchReservations(filters, limit = 5, offset = 0) {
   let baseSql = `SELECT * FROM availability_calendar WHERE 1=1`;
   const params = [];
 
