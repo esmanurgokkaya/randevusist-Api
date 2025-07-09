@@ -39,8 +39,12 @@ function formatDateTime(dateString) {
 
 const reservationSchema = z.object({
   room_id: z.number().int(),
-  start_datetime: z.string().datetime(),
-  end_datetime: z.string().datetime(),
+  start_datetime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Geçerli bir başlangıç tarihi girin.",
+  }),
+  end_datetime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Geçerli bir bitiş tarihi girin.",
+  }),
 });
 
 const createReservationController = async (req, res) => {
@@ -95,7 +99,7 @@ const createReservationController = async (req, res) => {
       const html = renderEmailTemplate({
         title: "Rezervasyon Onayı",
         name: user.name,
-        content
+        content,
       });
       await sendMail(user.email, "Rezervasyon Onayı", html);
     }
@@ -151,9 +155,14 @@ const updateReservation = async (req, res) => {
     const reservationId = req.params.id;
 
     const schema = z.object({
-      start_datetime: z.string().datetime(),
-      end_datetime: z.string().datetime(),
+      start_datetime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+        message: "Geçerli bir başlangıç tarihi girin.",
+      }),
+      end_datetime: z.string().refine((val) => !isNaN(Date.parse(val)), {
+        message: "Geçerli bir bitiş tarihi girin.",
+      }),
     });
+
     const validation = schema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({
@@ -203,28 +212,6 @@ const updateReservation = async (req, res) => {
     await updateReservationById(reservationId, start, end);
 
     const user = await findUserById(req.auth.id);
-    if (user?.email) {
-      const content = `
-        <p>Rezervasyonunuz başarıyla güncellendi.</p>
-        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Yeni Başlangıç:</td>
-            <td style="padding: 8px;">${formatDateTime(start_datetime)}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Yeni Bitiş:</td>
-            <td style="padding: 8px;">${formatDateTime(end_datetime)}</td>
-          </tr>
-        </table>
-      `;
-      const html = renderEmailTemplate({
-        title: "Rezervasyon Güncelleme",
-        name: user.name,
-        content
-      });
-      await sendMail(user.email, "Rezervasyon Güncelleme", html);
-    }
-
     res.json({ message: "Rezervasyon güncellendi" });
   } catch (err) {
     console.error("Rezervasyon güncelleme hatası:", err);
@@ -252,20 +239,6 @@ const deleteReservation = async (req, res) => {
     if (!userIds.includes(req.auth?.id)) {
       return res.status(403).json({ message: "Bu rezervasyonu silemezsiniz." });
     }
-
-    const user = await findUserById(req.auth.id);
-    // if (user?.email) {
-    //   const content = `
-    //     <p>Rezervasyonunuz iptal edildi.</p>
-    //     <p><strong>Başlangıç:</strong> ${formatDateTime(reservation.start_datetime)}</p>
-    //   `;
-    //   const html = renderEmailTemplate({
-    //     title: "Rezervasyon İptali",
-    //     name: user.name,
-    //     content
-    //   });
-    //   await sendMail(user.email, "Rezervasyon İptali", html);
-    // }
 
     await deleteReservationById(reservationId);
     res.json({ message: "Rezervasyon silindi" });
