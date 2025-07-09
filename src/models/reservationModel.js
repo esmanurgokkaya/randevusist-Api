@@ -79,6 +79,32 @@ async function deleteReservationById(reservationId) {
 }
 
 /**
+ * @desc sayfalama ile rezervasyonları getirir
+ */
+
+async function paginate(query, countQuery) {
+  return async function (db, filters = {}, limit = 10, offset = 0) {
+    const dataSql = query(filters);
+    const countSql = countQuery(filters);
+
+    const [rows] = await db.query(dataSql.sql + " LIMIT ? OFFSET ?", [...dataSql.params, limit, offset]);
+    const [[{ total }]] = await db.query(countSql.sql, countSql.params);
+
+    return {
+      total,
+      results: rows,
+      limit,
+      offset,
+      totalPages: Math.ceil(total / limit),
+      currentPage: Math.floor(offset / limit) + 1,
+    };
+  };
+}
+
+module.exports = paginate;
+
+
+/**
  * @desc Filtre ve sayfalama ile rezervasyonları getirir
  */
 async function searchReservations(filters, limit = 10, offset = 0) {

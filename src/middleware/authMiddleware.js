@@ -1,5 +1,7 @@
-const { expressjwt: jwt } = require("express-jwt");
+require("dotenv").config();
+console.log("ENV kontrolü:", process.env.JWT_SECRET);
 
+const { expressjwt: jwt } = require("express-jwt");
 // Access token kontrolü
 const verifyToken = jwt({
   secret: process.env.JWT_SECRET,

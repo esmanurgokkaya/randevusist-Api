@@ -254,18 +254,18 @@ const deleteReservation = async (req, res) => {
     }
 
     const user = await findUserById(req.auth.id);
-    if (user?.email) {
-      const content = `
-        <p>Rezervasyonunuz iptal edildi.</p>
-        <p><strong>Başlangıç:</strong> ${formatDateTime(reservation.start_datetime)}</p>
-      `;
-      const html = renderEmailTemplate({
-        title: "Rezervasyon İptali",
-        name: user.name,
-        content
-      });
-      await sendMail(user.email, "Rezervasyon İptali", html);
-    }
+    // if (user?.email) {
+    //   const content = `
+    //     <p>Rezervasyonunuz iptal edildi.</p>
+    //     <p><strong>Başlangıç:</strong> ${formatDateTime(reservation.start_datetime)}</p>
+    //   `;
+    //   const html = renderEmailTemplate({
+    //     title: "Rezervasyon İptali",
+    //     name: user.name,
+    //     content
+    //   });
+    //   await sendMail(user.email, "Rezervasyon İptali", html);
+    // }
 
     await deleteReservationById(reservationId);
     res.json({ message: "Rezervasyon silindi" });

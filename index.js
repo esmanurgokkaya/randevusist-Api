@@ -24,10 +24,7 @@ app.use(cors({
   origin: 'http://localhost:3000',  // Frontend adresin
   credentials: true               // Eğer cookie-based auth varsa true olmalı
 }));
-app.use(cors({
-  origin: 'http://localhost:127.0.0.1:80',  // Frontend adresin
-  credentials: true               // Eğer cookie-based auth varsa true olmalı
-}));
+
 
 // 📁 Route tanımları
 app.use('/auth', authRoutes);           // /api/auth/register, /api/auth/login
