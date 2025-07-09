@@ -46,7 +46,47 @@ const reservationSchema = z.object({
     message: "Geçerli bir bitiş tarihi girin.",
   }),
 });
-
+/**
+ * @swagger
+ * /reservations/reservations:
+ *   post:
+ *     summary: Create a new reservation
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - room_id
+ *               - start_datetime
+ *               - end_datetime
+ *             properties:
+ *               room_id:
+ *                 type: integer
+ *                 example: 1
+ *               start_datetime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-08-10T09:00"
+ *               end_datetime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-08-10T11:00"
+ *     responses:
+ *       201:
+ *         description: Reservation successfully created
+ *       400:
+ *         description: Invalid data or duration constraints
+ *       409:
+ *         description: Time slot is already taken
+ *       500:
+ *         description: Server error
+ */
+// olmayan odaya eklerken düzgün hata dönmüyor
 const createReservationController = async (req, res) => {
   try {
     const validation = reservationSchema.safeParse(req.body);
@@ -82,27 +122,27 @@ const createReservationController = async (req, res) => {
     await createReservation(room_id, user_id, start, end);
 
     const user = await findUserById(user_id);
-    if (user?.email) {
-      const content = `
-        <p>Rezervasyonunuz başarıyla oluşturuldu.</p>
-        <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Başlangıç:</td>
-            <td style="padding: 8px;">${formatDateTime(start_datetime)}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Bitiş:</td>
-            <td style="padding: 8px;">${formatDateTime(end_datetime)}</td>
-          </tr>
-        </table>
-      `;
-      const html = renderEmailTemplate({
-        title: "Rezervasyon Onayı",
-        name: user.name,
-        content,
-      });
-      await sendMail(user.email, "Rezervasyon Onayı", html);
-    }
+    // if (user?.email) {
+    //   const content = `
+    //     <p>Rezervasyonunuz başarıyla oluşturuldu.</p>
+    //     <table style="width: 100%; margin-top: 20px; border-collapse: collapse;">
+    //       <tr>
+    //         <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Başlangıç:</td>
+    //         <td style="padding: 8px;">${formatDateTime(start_datetime)}</td>
+    //       </tr>
+    //       <tr>
+    //         <td style="padding: 8px; background-color: #ecf0f1; font-weight: bold;">Bitiş:</td>
+    //         <td style="padding: 8px;">${formatDateTime(end_datetime)}</td>
+    //       </tr>
+    //     </table>
+    //   `;
+    //   const html = renderEmailTemplate({
+    //     title: "Rezervasyon Onayı",
+    //     name: user.name,
+    //     content,
+    //   });
+    //   await sendMail(user.email, "Rezervasyon Onayı", html);
+    // }
 
     return res.status(201).json({ message: "Rezervasyon başarıyla oluşturuldu" });
   } catch (err) {
@@ -110,6 +150,31 @@ const createReservationController = async (req, res) => {
     return res.status(500).json({ message: "Sunucu hatası", error: err.message });
   }
 };
+/**
+ * @swagger
+ * /reservations/reservations/me:
+ *   get:
+ *     summary: Get authenticated user's reservations (paginated)
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: List of user's reservations
+ *       500:
+ *         description: Server error
+ */
 
 const getMyReservationsController = async (req, res) => {
   try {
@@ -131,6 +196,31 @@ const getMyReservationsController = async (req, res) => {
 };
 
 
+/**
+ * @swagger
+ * /reservations/reservations/{id}:
+ *   get:
+ *     summary: Get reservation details by ID
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Reservation ID
+ *     responses:
+ *       200:
+ *         description: Reservation details
+ *       403:
+ *         description: Forbidden – not authorized
+ *       404:
+ *         description: Reservation not found
+ *       500:
+ *         description: Server error
+ */
 
 const getReservationById = async (req, res) => {
   try {
@@ -159,6 +249,50 @@ const getReservationById = async (req, res) => {
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
+/**
+ * @swagger
+ * /reservations/reservations/{id}:
+ *   put:
+ *     summary: Update a reservation
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - start_datetime
+ *               - end_datetime
+ *             properties:
+ *               start_datetime:
+ *                 type: string
+ *                 format: date-time
+ *               end_datetime:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Reservation updated
+ *       400:
+ *         description: Invalid data
+ *       403:
+ *         description: Not authorized to update this reservation
+ *       404:
+ *         description: Reservation not found
+ *       409:
+ *         description: Time slot conflict
+ *       500:
+ *         description: Server error
+ */
 
 const updateReservation = async (req, res) => {
   try {
@@ -228,6 +362,31 @@ const updateReservation = async (req, res) => {
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
+/**
+ * @swagger
+ * /reservations/reservations/{id}:
+ *   delete:
+ *     summary: Delete a reservation
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Reservation ID
+ *     responses:
+ *       200:
+ *         description: Reservation deleted
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Reservation not found
+ *       500:
+ *         description: Server error
+ */
 
 const deleteReservation = async (req, res) => {
   try {
@@ -257,6 +416,43 @@ const deleteReservation = async (req, res) => {
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
+/**
+ * @swagger
+ * /reservations/reservations:
+ *   get:
+ *     summary: Search reservations with filters (admin or employee only)
+ *     tags: [Reservations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: room_id
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: start_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: end_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Filtered reservation list
+ *       500:
+ *         description: Server error
+ */
 
 const searchReservationsController = async (req, res) => {
   try {

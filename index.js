@@ -11,6 +11,9 @@ const reservationRoutes = require('./src/routes/reservationRoute');
 
 // 🛡️ Middleware - Hataları yakalamak için özel auth middleware
 const { handleAuthError } = require('./src/middleware/authMiddleware');
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./docs/swagger");
+
 
 // 🚀 Uygulama başlat
 const app = express();
@@ -27,13 +30,14 @@ app.use(cors({
 
 
 // 📁 Route tanımları
-app.use('/auth', authRoutes);           // /api/auth/register, /api/auth/login
-app.use('/users', userRoutes);          // /api/users/me
-app.use('/reservations', reservationRoutes); // /api/reservations/
+app.use('/auth', authRoutes);           
+app.use('/users', userRoutes);          
+app.use('/reservations', reservationRoutes); 
 app.use("/rooms", roomRoutes);
 
 // ⚠️ Hataları merkezi olarak yakalayan middleware (örn: JWT geçersizse)
 app.use(handleAuthError);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ✅ Sunucuyu başlat
 app.listen(PORT, () => {

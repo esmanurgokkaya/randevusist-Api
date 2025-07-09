@@ -12,7 +12,7 @@ const {
 } = require("../models/tokenModel");
 const { success } = require("zod/v4");
 
-// ✪ Zod register şeması
+//  Zod register şeması
 const registerSchema = z.object({
   name: z.string().min(2, "İsim en az 2 karakter olmalı."),
   lastname: z.string().min(2, "Soyisim en az 2 karakter olmalı."),
@@ -36,7 +36,7 @@ const generateAccessToken = (user) => {
   return jwt.sign(
     { id: user.id, email: user.email },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "1h" }
   );
 };
 
@@ -44,14 +44,59 @@ const generateRefreshToken = async (user) => {
   const token = jwt.sign(
     { id: user.id, email: user.email },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "7d" }
   );
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await saveRefreshToken(user.id, token, expiresAt);
   return token;
 };
 
-// 🔐 Kullanıcı kaydı
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - lastname
+ *               - email
+ *               - phone
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: John
+ *               lastname:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: john@example.com
+ *               phone:
+ *                 type: string
+ *                 example: "05551234567"
+ *               password:
+ *                 type: string
+ *                 example: "StrongP@ss1"
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin, employee]
+ *     responses:
+ *       201:
+ *         description: User successfully registered
+ *       400:
+ *         description: Invalid input
+ *       409:
+ *         description: Email already exists
+ */
+
 const register = async (req, res) => {
   try {
     const {
@@ -60,9 +105,9 @@ const register = async (req, res) => {
       email,
       phone,
       password,
-      role = "user"  // gelen role varsa al, yoksa "user"
+      role = "user"  
     } = registerSchema.parse(req.body);
-
+    
     const hashedPassword = await argon2.hash(password);
     const result = await createUser(name, lastname, email, phone, hashedPassword, role);
 
@@ -81,7 +126,35 @@ const register = async (req, res) => {
   }
 };
 
-// 🔐 Kullanıcı girişi
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Login with email and password
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: john@example.com
+ *               password:
+ *                 type: string
+ *                 example: "StrongP@ss1"
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ */
+
 const login = async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
@@ -115,7 +188,32 @@ const login = async (req, res) => {
   }
 };
 
-// 🔄 Token yenileme
+/**
+ * @swagger
+ * /auth/refresh-token:
+ *   post:
+ *     summary: Refresh access token using a valid refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New access and refresh token issued
+ *       400:
+ *         description: Token not provided
+ *       403:
+ *         description: Invalid or expired token
+ */
+
 const refresh = async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ message: "Token sağlanmadı" });
@@ -137,7 +235,25 @@ const refresh = async (req, res) => {
   }
 };
 
-// 🔓 Çıkış
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout and invalidate refresh token
+ *     tags: [Auth]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ */
+
 const logout = async (req, res) => {
   const { token } = req.body;
   if (token) await deleteRefreshToken(token);

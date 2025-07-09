@@ -23,6 +23,24 @@ const updateUserSchema = z.object({
     .regex(/[!@#$%^&*]/, "Parola en az bir özel karakter içermeli (!@#$%^&*)")
     .optional(),
 });
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Get authenticated user's profile
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile successfully retrieved
+ *       401:
+ *         description: Unauthorized access
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 
 const getUserProfile = async (req, res) => {
   const userId = req.auth?.id;
@@ -50,6 +68,24 @@ const getUserProfile = async (req, res) => {
     return res.status(500).json({ message: 'Sunucu hatası.' });
   }
 };
+/**
+ * @swagger
+ * /users/me:
+ *   delete:
+ *     summary: Delete authenticated user's account
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account deleted successfully
+ *       401:
+ *         description: Unauthorized access
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 
 const deleteUserProfile = async (req, res) => {
   const userId = req.auth?.id;
@@ -69,6 +105,51 @@ const deleteUserProfile = async (req, res) => {
     return res.status(500).json({ message: 'Sunucu hatası: hesap silinemedi.' });
   }
 };
+/**
+ * @swagger
+ * /users/me:
+ *   put:
+ *     summary: Update authenticated user's profile
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: John
+ *               lastname:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: john@example.com
+ *               phone:
+ *                 type: string
+ *                 example: "05551234567"
+ *               oldPassword:
+ *                 type: string
+ *                 example: OldPass123!
+ *               newPassword:
+ *                 type: string
+ *                 example: NewPass123!
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Validation failed or password missing
+ *       401:
+ *         description: Unauthorized or old password mismatch
+ *       409:
+ *         description: Email already taken
+ *       500:
+ *         description: Server error
+ */
 
 const updateUserProfile = async (req, res) => {
   const userId = req.auth?.id;
@@ -106,6 +187,7 @@ const updateUserProfile = async (req, res) => {
 
       passwordToSave = await argon2.hash(data.newPassword);
     }
+// burada belki mail değiştirmeye izin verilmeyebilir doğrulama kodu eklenebilir
 
     if (data.email && data.email !== user.email) {
       const existing = await isEmailTakenByAnotherUser(data.email, userId);

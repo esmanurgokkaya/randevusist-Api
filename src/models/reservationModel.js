@@ -22,19 +22,38 @@ async function checkConflict(room_id, start_datetime, end_datetime) {
       AND (
         (start_datetime < ? AND end_datetime > ?)
         OR
-        (start_datetime < ? AND end_datetime > ?)
-        OR
         (start_datetime >= ? AND end_datetime <= ?)
       )
   `;
   const [rows] = await db.execute(sql, [
     room_id,
-    end_datetime, start_datetime,
-    end_datetime, start_datetime,
-    start_datetime, end_datetime
+    end_datetime, start_datetime, // örtüşme
+    start_datetime, end_datetime  // içinde olma
   ]);
   return rows;
 }
+
+// eski kodu 
+// async function checkConflict(room_id, start_datetime, end_datetime) {
+//   const sql = 
+//     SELECT * FROM availability_calendar
+//     WHERE room_id = ?
+//       AND (
+//         (start_datetime < ? AND end_datetime > ?)
+//         OR
+//         (start_datetime < ? AND end_datetime > ?)
+//         OR
+//         (start_datetime >= ? AND end_datetime <= ?)
+//       )
+//   ;
+//   const [rows] = await db.execute(sql, [
+//     room_id,
+//     end_datetime, start_datetime,
+//     end_datetime, start_datetime,
+//     start_datetime, end_datetime
+//   ]);
+//   return rows;
+// }
 
 /**
  * @desc Kullanıcının tüm rezervasyonlarını getirir
