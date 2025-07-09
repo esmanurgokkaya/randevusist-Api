@@ -14,14 +14,6 @@ const updateUserSchema = z.object({
   lastname: z.string().min(2, "Soyisim en az 2 karakter olmalı").optional(),
   email: z.string().email("Geçerli bir e-posta girin").optional(),
   phone: z.string().optional(),
-  oldPassword: z.string().min(6, "Eski parola en az 6 karakter olmalı").optional(),
-  newPassword: z.string()
-    .min(6, "Yeni parola en az 6 karakter olmalı")
-    .regex(/[A-Z]/, "Parola en az bir büyük harf içermeli")
-    .regex(/[a-z]/, "Parola en az bir küçük harf içermeli")
-    .regex(/[0-9]/, "Parola en az bir rakam içermeli")
-    .regex(/[!@#$%^&*]/, "Parola en az bir özel karakter içermeli (!@#$%^&*)")
-    .optional(),
 });
 /**
  * @swagger
@@ -171,22 +163,7 @@ const updateUserProfile = async (req, res) => {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
-    let passwordToSave = user.password;
-
-    if (data.oldPassword || data.newPassword) {
-      if (!data.oldPassword || !data.newPassword) {
-        return res.status(400).json({
-          message: 'Parola değiştirmek için hem eski hem yeni parola gereklidir.'
-        });
-      }
-
-      const match = await argon2.verify(user.password, data.oldPassword);
-      if (!match) {
-        return res.status(401).json({ message: 'Eski parola hatalı.' });
-      }
-
-      passwordToSave = await argon2.hash(data.newPassword);
-    }
+    
 // burada belki mail değiştirmeye izin verilmeyebilir doğrulama kodu eklenebilir
 
     if (data.email && data.email !== user.email) {
@@ -202,7 +179,6 @@ const updateUserProfile = async (req, res) => {
       data.lastname ?? user.lastname,
       data.email ?? user.email,
       data.phone ?? user.phone,
-      passwordToSave
     );
 
     return res.json({ message: 'Profil başarıyla güncellendi.' });

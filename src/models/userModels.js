@@ -62,13 +62,13 @@ const deleteUserById = async (id) => {
 /**
  * Kullanıcı bilgilerini günceller
  */
-const updateUserById = async (id, name, lastname, email, phone, password) => {
+const updateUserById = async (id, name, lastname, email, phone) => {
   const query = `
     UPDATE users
-    SET name = ?, lastname = ?, email = ?, phone = ?, password = ?
+    SET name = ?, lastname = ?, email = ?, phone = ?
     WHERE id = ?
   `;
-  const [result] = await _query(query, [name, lastname, email, phone, password, id]);
+  const [result] = await _query(query, [name, lastname, email, phone, id]);
   return result;
 };
 
