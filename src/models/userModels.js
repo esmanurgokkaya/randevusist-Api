@@ -72,6 +72,16 @@ const updateUserById = async (id, name, lastname, email, phone) => {
   return result;
 };
 
+const updateUserPasswordById = async (id, hashedPassword) => {
+  const query = `
+    UPDATE users
+    SET password = ?
+    WHERE id = ?
+  `;
+  const [result] = await _query(query, [hashedPassword, id]);
+  return result;
+};
+
 /**
  * Aynı e-posta başka kullanıcı tarafından kullanılıyor mu?
  */
@@ -88,5 +98,6 @@ module.exports = {
   findUserById,
   deleteUserById,
   updateUserById,
-  isEmailTakenByAnotherUser
+  isEmailTakenByAnotherUser,
+  updateUserPasswordById
 };

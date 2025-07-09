@@ -2,7 +2,8 @@ const {
   findUserById,
   deleteUserById,
   updateUserById,
-  isEmailTakenByAnotherUser
+  isEmailTakenByAnotherUser,
+  updateUserPasswordById
 } = require('../models/userModels');
 
 const argon2 = require('argon2');
@@ -15,6 +16,19 @@ const updateUserSchema = z.object({
   email: z.string().email("Geçerli bir e-posta girin").optional(),
   phone: z.string().optional(),
 });
+
+// şifre günceleme zod şeması
+const passwordChangeSchema = z.object({
+  oldPassword: z.string().min(6, "Eski parola en az 6 karakter olmalı"),
+  newPassword: z.string()
+    .min(6, "Yeni parola en az 6 karakter olmalı")
+    .regex(/[A-Z]/, "Parola en az bir büyük harf içermeli")
+    .regex(/[a-z]/, "Parola en az bir küçük harf içermeli")
+    .regex(/[0-9]/, "Parola en az bir rakam içermeli")
+    .regex(/[!@#$%^&*]/, "Parola en az bir özel karakter içermeli (!@#$%^&*)")
+});
+
+
 /**
  * @swagger
  * /users/me:
@@ -124,12 +138,7 @@ const deleteUserProfile = async (req, res) => {
  *               phone:
  *                 type: string
  *                 example: "05551234567"
- *               oldPassword:
- *                 type: string
- *                 example: OldPass123!
- *               newPassword:
- *                 type: string
- *                 example: NewPass123!
+ *             
  *     responses:
  *       200:
  *         description: Profile updated successfully
@@ -188,9 +197,85 @@ const updateUserProfile = async (req, res) => {
     return res.status(500).json({ message: 'Sunucu hatası: profil güncellenemedi.' });
   }
 };
+/**
+ * @swagger
+ * /users/me/change-password:
+ *   put:
+ *     summary: Change user password
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *                 example: OldPass123!
+ *               newPassword:
+ *                 type: string
+ *                 example: NewPass456@
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized or wrong old password
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+
+const changePassword = async (req, res) => {
+  const userId = req.auth?.id;
+  if (!userId) return res.status(401).json({ message: "Yetkisiz erişim." });
+
+  const validation = passwordChangeSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      message: "Geçersiz veri.",
+      errors: validation.error.errors
+    });
+  }
+
+  const { oldPassword, newPassword } = validation.data;
+
+  try {
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Kullanıcı bulunamadı." });
+    }
+
+    const match = await argon2.verify(user.password, oldPassword);
+    if (!match) {
+      return res.status(401).json({ message: "Eski parola hatalı." });
+    }
+
+    const hashedPassword = await argon2.hash(newPassword);
+    await updateUserPasswordById(
+      userId,
+      hashedPassword
+    );
+
+    return res.json({ message: "Parola başarıyla güncellendi." });
+  } catch (err) {
+    console.error("Parola güncelleme hatası:", err.stack || err.message);
+    return res.status(500).json({ message: "Sunucu hatası: parola güncellenemedi." });
+  }
+};
+
 
 module.exports = {
   getUserProfile,
   deleteUserProfile,
   updateUserProfile,
+  changePassword,
 };
