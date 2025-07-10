@@ -91,7 +91,19 @@ const isEmailTakenByAnotherUser = async (email, currentUserId) => {
   return rows.length > 0;
 };
 
-// 🔄 Export
+async function getUserPermissions(userId) {
+  const [permissions] = await db.query(`
+    SELECT p.name FROM users u
+    JOIN roles r ON u.role_id = r.id
+    JOIN role_permissions rp ON r.id = rp.role_id
+    JOIN permissions p ON rp.permission_id = p.id
+    WHERE u.id = ?
+  `, [userId]);
+
+  return permissions.map(p => p.name); // ['room:create', 'room:delete']
+}
+
+//  Export
 module.exports = {
   createUser,
   findUserByEmail,
@@ -99,5 +111,6 @@ module.exports = {
   deleteUserById,
   updateUserById,
   isEmailTakenByAnotherUser,
-  updateUserPasswordById
+  updateUserPasswordById,
+  getUserPermissions
 };

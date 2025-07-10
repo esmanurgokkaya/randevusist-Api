@@ -1,5 +1,5 @@
 require("dotenv").config();
-console.log("ENV kontrolü:", process.env.JWT_SECRET);
+const { getUserPermissions } = require('../models/userModels');
 
 const { expressjwt: jwt } = require("express-jwt");
 // Access token kontrolü
@@ -17,7 +17,25 @@ const handleAuthError = (err, req, res, next) => {
   next(err);
 };
 
+
+const checkPermission = (permission) => {
+  return async (req, res, next) => {
+    try {
+      const permissions = await getUserPermissions(req.auth.id);
+      if (!permissions.includes(permission)) {
+        return res.status(403).json({ message: "Yetkiniz yok" });
+      }
+      next();
+    } catch (err) {
+      console.error("Yetki kontrol hatası:", err);
+      res.status(500).json({ message: "Yetki kontrol hatası" });
+    }
+  };
+};
+
+
 module.exports = {
   verifyToken,
   handleAuthError,
+  checkPermission,
 };
