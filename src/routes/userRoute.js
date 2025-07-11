@@ -10,7 +10,7 @@ const { verifyToken, handleAuthError } = require('../middleware/authMiddleware')
 
 const router = express.Router();
 
-// 👤 Kullanıcı kendi profil bilgilerini görüntüleyebilir, güncelleyebilir, silebilir
+//  Kullanıcı kendi profil bilgilerini görüntüleyebilir, güncelleyebilir, silebilir
 router.get('/me', verifyToken, getUserProfile);
 router.put('/me', verifyToken, updateUserProfile);
 router.delete('/me', verifyToken, deleteUserProfile);
