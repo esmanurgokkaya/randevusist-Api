@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const argon2 = require("argon2");
 const z = require("zod");
+const logger = require("../utils/logger");
+
 const {
   createUser,
   findUserByEmail
@@ -24,7 +26,7 @@ const registerSchema = z.object({
     .regex(/[a-z]/, "Parola en az bir küçük harf içermeli")
     .regex(/[0-9]/, "Parola en az bir rakam içermeli")
     .regex(/[!@#$%^&*]/, "Parola en az bir özel karakter içermeli (!@#$%^&*)"),
-  role: z.enum(["user", "admin", "employee"]).optional()
+  role_id: z.number().int().optional().default(3)
 });
 
 const loginSchema = z.object({
@@ -34,7 +36,7 @@ const loginSchema = z.object({
 
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role_id: user.role_id },
     process.env.JWT_SECRET,
     { expiresIn: "1h" }
   );
@@ -42,7 +44,7 @@ const generateAccessToken = (user) => {
 
 const generateRefreshToken = async (user) => {
   const token = jwt.sign(
-    { id: user.id, email: user.email },
+    { id: user.id, email: user.email, role_id: user.role_id },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: "7d" }
   );
@@ -85,9 +87,8 @@ const generateRefreshToken = async (user) => {
  *               password:
  *                 type: string
  *                 example: "StrongP@ss1"
- *               role:
- *                 type: string
- *                 enum: [user, admin, employee]
+ *               role_id:
+ *                 type: int
  *     responses:
  *       201:
  *         description: User successfully registered
@@ -98,6 +99,9 @@ const generateRefreshToken = async (user) => {
  */
 
 const register = async (req, res) => {
+console.log("🧾 Gelen İstek:", req.headers);
+console.log("📦 İstek Body:", req.body);
+
   try {
     const {
       name,
@@ -105,23 +109,28 @@ const register = async (req, res) => {
       email,
       phone,
       password,
-      role = "user"  
+      role_id 
     } = registerSchema.parse(req.body);
-    
-    const hashedPassword = await argon2.hash(password);
-    const result = await createUser(name, lastname, email, phone, hashedPassword, role);
+    console.log("Gelen body:", req.body);
 
+    const hashedPassword = await argon2.hash(password);
+    const result = await createUser(name, lastname, email, phone, hashedPassword, role_id);
+
+    logger.info(`New user registered: ${email} (ID: ${result.insertId})`);
     return res.status(201).json({
       message: "Kullanıcı başarıyla oluşturuldu.",
       userID: result.insertId
     });
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
+      logger.warn(`Registration attempt with existing email: ${req.body.email}`);
       return res.status(409).json({ message: "Bu e-posta zaten kayıtlı." });
     }
     if (err.errors) {
+      logger.warn(`Validation errors during registration: ${JSON.stringify(err.errors)}`);
       return res.status(400).json({ message: "Geçersiz veri.", errors: err.errors });
     }
+    logger.error(`Registration error: ${err.message}`);
     return res.status(500).json({ message: "Kayıt hatası", error: err.message });
   }
 };
@@ -161,12 +170,14 @@ const login = async (req, res) => {
     const user = await findUserByEmail(email);
 
     if (!user || !(await argon2.verify(user.password, password))) {
+      logger.warn(`Failed login attempt: ${email}`);
       return res.status(401).json({ message: "Geçersiz e-posta veya şifre." });
     }
     const accessToken = generateAccessToken(user);
 
     const refreshToken = await generateRefreshToken(user);
 
+    logger.info(`Successful login: ${email}`);
     return res.json({
       success:true,
       message: "Giriş başarılı",
@@ -178,12 +189,13 @@ const login = async (req, res) => {
         lastname: user.lastname,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role_id: user.role_id
       }
       
     });
     
   } catch (error) {
+    logger.error(`Login error: ${error.message}`);
     return res.status(500).json({ message: "Giriş hatası", error: error.message });
   }
 };
@@ -216,11 +228,16 @@ const login = async (req, res) => {
 
 const refresh = async (req, res) => {
   const { token } = req.body;
-  if (!token) return res.status(400).json({ message: "Token sağlanmadı" });
-
+  if (!token) {
+    logger.warn("Refresh token not provided");
+    return res.status(400).json({ message: "Token sağlanmadı" });
+  }
   try {
     const stored = await findRefreshToken(token);
-    if (!stored) return res.status(403).json({ message: "Geçersiz veya silinmiş refresh token" });
+    if (!stored) {
+      logger.warn("Invalid or deleted refresh token used");
+      return res.status(403).json({ message: "Geçersiz veya silinmiş refresh token" });
+    }
 
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
     const user = { id: decoded.id, email: decoded.email };
@@ -228,9 +245,12 @@ const refresh = async (req, res) => {
     await deleteRefreshToken(token);
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = await generateRefreshToken(user);
+    logger.info(`Refresh token renewed for user: ${user.email}`);
+
 
     return res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
   } catch (err) {
+    logger.error(`Refresh token verification error: ${err.message}`);
     return res.status(403).json({ message: "Token doğrulanamadı", error: err.message });
   }
 };
@@ -256,8 +276,14 @@ const refresh = async (req, res) => {
 
 const logout = async (req, res) => {
   const { token } = req.body;
-  if (token) await deleteRefreshToken(token);
-  res.json({ message: "Çıkış başarılı" });
+  if (token) {
+    await deleteRefreshToken(token);
+   logger.info("Refresh token deleted, user logged out.");
+  }
+  else {
+    logger.warn("Logout requested but no token provided.");
+  }
+   res.json({ message: "Çıkış başarılı" });
 };
 
 module.exports = {

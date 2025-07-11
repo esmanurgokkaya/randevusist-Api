@@ -5,6 +5,7 @@ const {
   isEmailTakenByAnotherUser,
   updateUserPasswordById
 } = require('../models/userModels');
+const logger = require("../utils/logger");
 
 const argon2 = require('argon2');
 const z = require('zod');
@@ -50,14 +51,18 @@ const passwordChangeSchema = z.object({
 
 const getUserProfile = async (req, res) => {
   const userId = req.auth?.id;
-  if (!userId) return res.status(401).json({ message: 'Yetkisiz erişim.' });
-
+  if (!userId) {
+    logger.warn("Unauthorized access attempt to get user profile.");
+    return res.status(401).json({ message: 'Yetkisiz erişim.' });
+  }
   try {
     const user = await findUserById(userId);
     if (!user) {
+      logger.warn(`User profile not found: userId=${userId}`);
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
+    logger.info(`User profile retrieved: userId=${userId}`);
     return res.json({
       message: 'Kullanıcı profili başarıyla getirildi.',
       user: {
@@ -66,11 +71,11 @@ const getUserProfile = async (req, res) => {
         lastname: user.lastname,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role_id: user.role_id
       }
     });
   } catch (err) {
-    console.error("Profil bilgileri alınırken hata:", err.stack || err.message);
+    logger.error(`Error retrieving user profile: ${err.stack || err.message}`);
     return res.status(500).json({ message: 'Sunucu hatası.' });
   }
 };
@@ -95,19 +100,23 @@ const getUserProfile = async (req, res) => {
 
 const deleteUserProfile = async (req, res) => {
   const userId = req.auth?.id;
-  if (!userId) return res.status(401).json({ message: 'Yetkisiz erişim.' });
-
+  if (!userId) {
+    logger.warn("Unauthorized access attempt to delete user profile.");
+    return res.status(401).json({ message: 'Yetkisiz erişim.' });
+  }
   try {
     const user = await findUserById(userId);
     if (!user) {
+       logger.warn(`User to delete not found: userId=${userId}`);
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
 
     await deleteUserById(userId);
+     logger.info(`User account deleted: userId=${userId}`);
     return res.json({ message: 'Hesap başarıyla silindi' });
 
   } catch (err) {
-    console.error("Hesap silme hatası:", err.stack || err.message);
+    logger.error(`Error deleting user account: ${err.stack || err.message}`);
     return res.status(500).json({ message: 'Sunucu hatası: hesap silinemedi.' });
   }
 };
@@ -154,10 +163,13 @@ const deleteUserProfile = async (req, res) => {
 
 const updateUserProfile = async (req, res) => {
   const userId = req.auth?.id;
-  if (!userId) return res.status(401).json({ message: 'Yetkisiz erişim.' });
-
+  if (!userId) {
+   logger.warn("Unauthorized access attempt to update profile."); 
+    return res.status(401).json({ message: 'Yetkisiz erişim.' });
+  }
   const validation = updateUserSchema.safeParse(req.body);
   if (!validation.success) {
+    logger.warn("User profile update validation failed.");
     return res.status(400).json({
       message: 'Geçersiz veri.',
       errors: validation.error.errors
@@ -169,6 +181,7 @@ const updateUserProfile = async (req, res) => {
   try {
     const user = await findUserById(userId);
     if (!user) {
+      logger.warn(`User not found for update: userId=${userId}`);
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
     }
 
@@ -178,6 +191,7 @@ const updateUserProfile = async (req, res) => {
     if (data.email && data.email !== user.email) {
       const existing = await isEmailTakenByAnotherUser(data.email, userId);
       if (existing) {
+        ogger.warn(`Email already taken during profile update: email=${data.email}`);
         return res.status(409).json({ message: 'Bu e-posta başka bir kullanıcıya ait.' });
       }
     }
@@ -190,10 +204,11 @@ const updateUserProfile = async (req, res) => {
       data.phone ?? user.phone,
     );
 
+    logger.info(`User profile updated successfully: userId=${userId}`);
     return res.json({ message: 'Profil başarıyla güncellendi.' });
 
   } catch (err) {
-    console.error("Güncelleme hatası:", err.stack || err.message);
+    logger.error(`Error updating profile: ${err.stack || err.message}`);
     return res.status(500).json({ message: 'Sunucu hatası: profil güncellenemedi.' });
   }
 };
@@ -236,8 +251,10 @@ const updateUserProfile = async (req, res) => {
 
 const changePassword = async (req, res) => {
   const userId = req.auth?.id;
-  if (!userId) return res.status(401).json({ message: "Yetkisiz erişim." });
-
+  if (!userId) {
+    logger.warn("Unauthorized access attempt to change password.");
+    return res.status(401).json({ message: "Yetkisiz erişim." });
+  }
   const validation = passwordChangeSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -251,11 +268,13 @@ const changePassword = async (req, res) => {
   try {
     const user = await findUserById(userId);
     if (!user) {
+      logger.warn(`User not found for password change: userId=${userId}`);
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
 
     const match = await argon2.verify(user.password, oldPassword);
     if (!match) {
+      logger.warn(`Old password mismatch for userId=${userId}`);
       return res.status(401).json({ message: "Eski parola hatalı." });
     }
 
@@ -264,10 +283,10 @@ const changePassword = async (req, res) => {
       userId,
       hashedPassword
     );
-
+    logger.info(`Password updated successfully for userId=${userId}`);
     return res.json({ message: "Parola başarıyla güncellendi." });
   } catch (err) {
-    console.error("Parola güncelleme hatası:", err.stack || err.message);
+    logger.error(`Password update error: ${err.stack || err.message}`);
     return res.status(500).json({ message: "Sunucu hatası: parola güncellenemedi." });
   }
 };

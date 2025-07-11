@@ -21,14 +21,14 @@ const _query = async (query, params) => {
  * @param {string} email
  * @param {string} phone
  * @param {string} password - Argon2 hashlenmiş şifre
- * @param {string} role - (varsayılan: 'user')
+ * @param {int} role_id - (varsayılan: 'user')
  */
-const createUser = async (name, lastname, email, phone, password, role = 'user') => {
+const createUser = async (name, lastname, email, phone, password, role_id = 3) => {
   const query = `
-    INSERT INTO users (name, lastname, email, phone, password, role)
+    INSERT INTO users (name, lastname, email, phone, password, role_id)
     VALUES (?, ?, ?, ?, ?, ?)
   `;
-  const [result] = await _query(query, [name, lastname, email, phone, password, role]);
+  const [result] = await _query(query, [name, lastname, email, phone, password, role_id]);
   return result;
 };
 

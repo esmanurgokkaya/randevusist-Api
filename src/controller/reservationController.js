@@ -12,6 +12,8 @@ const { findUserById } = require("../models/userModels");
 const sendMail = require("../utils/mailService");
 const renderEmailTemplate = require("../utils/emailTemplate");
 const z = require("zod");
+const logger = require("../utils/logger");
+
 
 // ISO 8601 string'i MySQL DATETIME formatına çevir
 function toMySQLDatetime(isoString) {
@@ -91,6 +93,7 @@ const createReservationController = async (req, res) => {
   try {
     const validation = reservationSchema.safeParse(req.body);
     if (!validation.success) {
+      logger.warn(`Invalid reservation data: ${JSON.stringify(validation.error.errors)}`);
       return res.status(400).json({
         message: "Geçersiz veri",
         errors: validation.error.errors,
@@ -105,9 +108,11 @@ const createReservationController = async (req, res) => {
     const endTime = new Date(end_datetime);
     const durationInHours = (endTime - startTime) / (1000 * 60 * 60);
     if (durationInHours < 1) {
+      logger.warn(`Reservation duration too short by user ${user_id}`);
       return res.status(400).json({ message: "Rezervasyon süresi en az 1 saat olmalıdır." });
     }
     if (durationInHours > 2) {
+      logger.warn(`Reservation duration too long by user ${user_id}`);
       return res.status(400).json({ message: "Rezervasyon süresi en fazla 2 saat olabilir." });
     }
 
@@ -116,10 +121,13 @@ const createReservationController = async (req, res) => {
 
     const conflict = await checkConflict(room_id, start, end);
     if (conflict.length > 0) {
+      logger.info(`Reservation conflict detected for user ${user_id} in room ${room_id} between ${start} and ${end}`);
       return res.status(409).json({ message: "Bu saat aralığı dolu.", conflict });
     }
 
     await createReservation(room_id, user_id, start, end);
+    logger.info(`Reservation created by user ${user_id} for room ${room_id} from ${start} to ${end}`);
+
 
     const user = await findUserById(user_id);
     // if (user?.email) {
@@ -146,7 +154,7 @@ const createReservationController = async (req, res) => {
 
     return res.status(201).json({ message: "Rezervasyon başarıyla oluşturuldu" });
   } catch (err) {
-    console.error("Rezervasyon oluşturma hatası:", err);
+    logger.error(`Error creating reservation: ${err.message}`);
     return res.status(500).json({ message: "Sunucu hatası", error: err.message });
   }
 };
@@ -187,10 +195,10 @@ const getMyReservationsController = async (req, res) => {
     const filters = { user_id };
 
     const results = await searchReservations(filters, limit, offset);
-
+logger.info(`User ${user_id} fetched reservations page ${page} limit ${limit}`);
     res.json({ page, limit, results });
   } catch (err) {
-    console.error("Rezervasyonları getirirken hata:", err);
+    logger.error(`Error fetching reservations for user ${req.auth?.id}: ${err.message}`);
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
@@ -226,8 +234,10 @@ const getReservationById = async (req, res) => {
   try {
     const reservationId = req.params.id;
     const results = await getResById(reservationId);
-    if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
-
+    if (!results.length) {
+        logger.warn(`Reservation not found: ID ${reservationId}`);
+        return res.status(404).json({ message: "Rezervasyon bulunamadı" });
+      }
     const reservation = results[0];
 
     let userIds = [];
@@ -240,12 +250,14 @@ const getReservationById = async (req, res) => {
     }
 
     if (!userIds.includes(req.auth?.id)) {
+      logger.warn(`Unauthorized access attempt to reservation ${reservationId} by user ${req.auth?.id}`);
       return res.status(403).json({ message: "Bu rezervasyona erişim izniniz yok." });
-    }
 
+    }
+    logger.info(`Reservation ${reservationId} accessed by user ${req.auth?.id}`);
     res.json({ reservation });
   } catch (err) {
-    console.error("Rezervasyon detay hatası:", err);
+    logger.error(`Error fetching reservation details: ${err.message}`);   
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
@@ -309,6 +321,7 @@ const updateReservation = async (req, res) => {
 
     const validation = schema.safeParse(req.body);
     if (!validation.success) {
+       logger.warn(`Invalid update data for reservation ${reservationId}: ${JSON.stringify(validation.error.errors)}`);
       return res.status(400).json({
         message: "Geçersiz veri",
         errors: validation.error.errors,
@@ -321,14 +334,19 @@ const updateReservation = async (req, res) => {
     const endTime = new Date(end_datetime);
     const durationInHours = (endTime - startTime) / (1000 * 60 * 60);
     if (durationInHours < 1) {
+      logger.warn(`Update failed: duration too short for reservation ${reservationId}`);
       return res.status(400).json({ message: "Rezervasyon süresi en az 1 saat olmalıdır." });
     }
     if (durationInHours > 2) {
+      logger.warn(`Update failed: duration too long for reservation ${reservationId}`);
       return res.status(400).json({ message: "Rezervasyon süresi en fazla 2 saat olabilir." });
     }
 
     const results = await getResById(reservationId);
-    if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
+    if (!results.length) {
+      logger.warn(`Reservation not found for update: ID ${reservationId}`);
+      return res.status(404).json({ message: "Rezervasyon bulunamadı" });
+    }
 
     const reservation = results[0];
 
@@ -342,6 +360,7 @@ const updateReservation = async (req, res) => {
     }
 
     if (!userIds.includes(req.auth?.id)) {
+      logger.warn(`Unauthorized update attempt on reservation ${reservationId} by user ${req.auth?.id}`);
       return res.status(403).json({ message: "Bu rezervasyonu güncelleyemezsiniz." });
     }
 
@@ -350,15 +369,17 @@ const updateReservation = async (req, res) => {
 
     const conflict = await checkConflict(reservation.room_id, start, end);
     if (conflict.some((r) => r.id !== reservation.id)) {
+      logger.info(`Time conflict detected during update of reservation ${reservationId}`);
       return res.status(409).json({ message: "Bu saat aralığı dolu." });
     }
 
     await updateReservationById(reservationId, start, end);
+    logger.info(`Reservation ${reservationId} updated by user ${req.auth?.id}`);
 
     const user = await findUserById(req.auth.id);
     res.json({ message: "Rezervasyon güncellendi" });
   } catch (err) {
-    console.error("Rezervasyon güncelleme hatası:", err);
+    logger.error(`Error updating reservation ${req.params.id}: ${err.message}`);
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
@@ -392,8 +413,10 @@ const deleteReservation = async (req, res) => {
   try {
     const reservationId = req.params.id;
     const results = await getResById(reservationId);
-    if (!results.length) return res.status(404).json({ message: "Rezervasyon bulunamadı" });
-
+    if (!results.length) {
+      logger.warn(`Reservation not found for deletion: ID ${reservationId}`);
+      return res.status(404).json({ message: "Rezervasyon bulunamadı" });
+    }
     const reservation = results[0];
 
     let userIds = [];
@@ -406,13 +429,15 @@ const deleteReservation = async (req, res) => {
     }
 
     if (!userIds.includes(req.auth?.id)) {
+      logger.warn(`Unauthorized deletion attempt on reservation ${reservationId} by user ${req.auth?.id}`);
       return res.status(403).json({ message: "Bu rezervasyonu silemezsiniz." });
     }
 
     await deleteReservationById(reservationId);
+    logger.info(`Reservation ${reservationId} deleted by user ${req.auth?.id}`);
     res.json({ message: "Rezervasyon silindi" });
   } catch (err) {
-    console.error("Rezervasyon silme hatası:", err);
+    logger.error(`Error deleting reservation ${req.params.id}: ${err.message}`);
     res.status(500).json({ message: "Sunucu hatası" });
   }
 };
@@ -468,9 +493,12 @@ const searchReservationsController = async (req, res) => {
     };
 
     const results = await searchReservations(filters, limit, offset);
+    logger.info(`User ${req.auth?.id} searched reservations with filters ${JSON.stringify(filters)} - page ${page}`);
+
     res.json({ page, limit, results });
   } catch (err) {
     console.error("Filtreleme hatası:", err);
+    logger.error(`Error searching reservations: ${err.message}`);
     res.status(500).json({ message: "Filtreleme sırasında hata oluştu" });
   }
 };

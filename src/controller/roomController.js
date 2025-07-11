@@ -1,4 +1,5 @@
 const { getAllRooms } = require("../models/roomModel");
+const logger = require("../utils/logger");
 
 /**
  * @swagger
@@ -35,9 +36,10 @@ const { getAllRooms } = require("../models/roomModel");
 const listRoomsController = async (req, res) => {
   try {
     const rooms = await getAllRooms();
+    logger.info(`Rooms fetched successfully. Count: ${rooms.length}`);
     res.json({ rooms });
   } catch (err) {
-    console.error("Oda listeleme hatası:", err);
+    logger.error(`Error fetching rooms: ${err.message}`);
     res.status(500).json({ message: "Oda verileri alınamadı" });
   }
 };
