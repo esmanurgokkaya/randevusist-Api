@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket Test Arayüzü</title>
+</head>
+<body>
+  <h2>WebSocket Rezervasyon Bildirimleri</h2>
+  <div id="messages"></div>
+
+  <script>
+    const socket = new WebSocket('ws://localhost:3001');
+
+    socket.onopen = () => {
+      console.log('✅ Bağlantı kuruldu');
+    };
+
+    socket.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      console.log("📩 Gelen mesaj:", msg);
+
+      if (msg.type === 'reservation_taken') {
+        const { room_id, start_datetime, end_datetime } = msg.data;
+        const div = document.getElementById('messages');
+        div.innerHTML += `<p>❗ Oda ${room_id} için <b>${start_datetime} - ${end_datetime}</b> rezerve edildi.</p>`;
+      }
+    };
+
+    socket.onerror = (err) => {
+      console.error("WebSocket hatası:", err);
+    };
+  </script>
+</body>
+</html>

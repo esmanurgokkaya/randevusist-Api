@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config(); // .env dosyasındaki değişkenleri yükle
 const morgan = require('morgan');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 
 
 //  Route dosyalarını içeri al
@@ -21,7 +23,21 @@ const swaggerSpec = require("./docs/swagger");
 //  Uygulama başlat
 const app = express();
 const PORT = process.env.PORT || 5000; // PORT yoksa 5000 fallback olarak kullanılır
+const server = http.createServer(app); 
 
+const wss = new WebSocketServer({ server }); // <-- WebSocket sunucusunu başlat
+
+// WebSocket bağlantılarını logla
+wss.on('connection', (ws) => {
+  console.log(' Yeni bir WebSocket istemcisi bağlandı');
+  ws.send(JSON.stringify({ type: 'info', message: 'WebSocket bağlantısı kuruldu' }));
+});
+
+// Her request'e WebSocket erişimi ekle (controller'da kullanacağız)
+app.use((req, res, next) => {
+  req.wss = wss;
+  next();
+});
 //  Middleware - JSON istek gövdesini ayrıştır
 app.use(express.json());
 app.use(morgan('dev')); 
@@ -51,6 +67,6 @@ app.use(morgan('combined', {
 }));
 
 // Sunucuyu başlat
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Sunucu ${PORT} portunda çalışıyor`);
 });

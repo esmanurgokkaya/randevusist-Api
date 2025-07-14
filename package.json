@@ -24,10 +24,12 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.14.1",
     "nodemailer": "^7.0.4",
+    "nodemon": "^3.1.10",
     "pg": "^8.16.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.17.0",
+    "ws": "^8.18.3",
     "zod": "^3.25.71"
   },
   "devDependencies": {

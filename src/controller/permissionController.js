@@ -1,5 +1,4 @@
 const {getAllPermissions, createPermission, updatePermissionById, deletePermissionById} = require("../models/permissionModel");
-const { get } = require("../routes/userRoute");
 const logger = require("../utils/logger");
 
 
@@ -62,7 +61,7 @@ const deletePermissions = async (req, res) => {
         logger.error(`Error deleting permission: ${err.message}`);
         return res.status(500).json({ message: "Permission could not be deleted" });
     }
-}
+};
 
 module.exports = {
     listPermissions,

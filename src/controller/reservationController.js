@@ -127,6 +127,23 @@ const createReservationController = async (req, res) => {
 
     await createReservation(room_id, user_id, start, end);
     logger.info(`Reservation created by user ${user_id} for room ${room_id} from ${start} to ${end}`);
+    // Yeni rezervasyon başarıyla oluşturulduktan hemen sonra:
+    const wsMessage = {
+      type: 'reservation_taken',
+      data: {
+        room_id,
+        start_datetime,
+        end_datetime
+      }
+    };
+
+    if (req.wss) {
+      req.wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+          client.send(JSON.stringify(wsMessage));
+        }
+      });
+    }
 
 
     const user = await findUserById(user_id);
@@ -157,6 +174,7 @@ const createReservationController = async (req, res) => {
     logger.error(`Error creating reservation: ${err.message}`);
     return res.status(500).json({ message: "Sunucu hatası", error: err.message });
   }
+  
 };
 /**
  * @swagger
