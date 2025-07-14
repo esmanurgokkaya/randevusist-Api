@@ -1,4 +1,5 @@
 require("dotenv").config();
+const logger = require("../utils/logger");
 const { getUserPermissions } = require('../models/userModels');
 
 const { expressjwt: jwt } = require("express-jwt");
@@ -23,11 +24,13 @@ const checkPermission = (permission) => {
     try {
       const permissions = await getUserPermissions(req.auth.id);
       if (!permissions.includes(permission)) {
+        logger.warn(`Unauthorized access attempt: userId=${req.auth.id}, permission=${permission}`);
         return res.status(403).json({ message: "Yetkiniz yok" });
       }
       next();
     } catch (err) {
       console.error("Yetki kontrol hatası:", err);
+      logger.error(`Permission check error: ${err.message}`);
       res.status(500).json({ message: "Yetki kontrol hatası" });
     }
   };

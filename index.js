@@ -10,6 +10,7 @@ const roomRoutes = require("./src/routes/roomRoute");
 const authRoutes = require('./src/routes/authRoute');
 const userRoutes = require('./src/routes/userRoute');
 const reservationRoutes = require('./src/routes/reservationRoute');
+const permissionRoutes = require('./src/routes/permissionRoute');
 
 // 🛡️ Middleware - Hataları yakalamak için özel auth middleware
 const { handleAuthError } = require('./src/middleware/authMiddleware');
@@ -36,6 +37,7 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);          
 app.use('/reservations', reservationRoutes); 
 app.use("/rooms", roomRoutes);
+app.use("/admin", permissionRoutes);
 
 // ⚠️ Hataları merkezi olarak yakalayan middleware (örn: JWT geçersizse)
 app.use(handleAuthError);

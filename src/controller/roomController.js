@@ -1,4 +1,4 @@
-const { getAllRooms } = require("../models/roomModel");
+const { getAllRooms, createRoom, updateRoomById, deleteRoomById } = require("../models/roomModel");
 const logger = require("../utils/logger");
 
 /**
@@ -44,6 +44,53 @@ const listRoomsController = async (req, res) => {
   }
 };
 
+const createRooms = async (req, res) => {
+  const { name, cover, status } = req.body;
+  try {
+    const result = await createRoom(name, cover, status);
+    logger.info(`Room created successfully: ${name}`);
+    res.status(201).json({ message: "Oda başarıyla oluşturuldu", room: result });
+  } catch (err) {
+    logger.error(`Error creating room: ${err.message}`);
+    res.status(500).json({ message: "Oda oluşturulamadı" });
+  }
+};
+
+  const updateRooms = async (req, res) => {
+    const {id} = req.params;
+    const {name, cover, status} = req.body;
+    try{
+      const result = await updateRoomById(id, name, cover, status);
+      if(result.affectedRows === 0){
+        return res.status(404).json({ message: "Oda bulunamadı"});
+      }
+      logger.info(`Room updated successfully:${id}`);
+      return res.status(200).json({ message: "Oda başarıyla güncellendi"});
+      }catch(err){
+        logger.error(`Error updating room: ${err.message}`);
+        return res.status(500).json({ message: "Oda güncellenemedi"});
+    }
+  };
+
+  const deleteRooms = async (req, res) => {
+    const {id} = req.params;
+    try {
+      const result = await deleteRoomById(id);
+      if(result.affectedRows === 0){
+        return res.status(404).json({ message: "Oda bulunamadı" });
+      }
+      logger.info(`Room deleted successfully: ${id}`);
+      return res.status(200).json({ message: "Oda başarıyla silindi"});
+    }
+    catch (err){
+      logger.error(`Error deleting room: ${err.message}`);
+      return res.status(500).json({ message: "Oda silinemedi"});
+    }
+    };
+  
 module.exports = {
   listRooms: listRoomsController,
+  createRooms,
+  updateRooms,
+  deleteRooms
 };
