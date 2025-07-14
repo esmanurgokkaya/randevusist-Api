@@ -99,8 +99,8 @@ const generateRefreshToken = async (user) => {
  */
 
 const register = async (req, res) => {
-console.log("🧾 Gelen İstek:", req.headers);
-console.log("📦 İstek Body:", req.body);
+console.log("Gelen İstek:", req.headers);
+console.log(" İstek Body:", req.body);
 
   try {
     const {

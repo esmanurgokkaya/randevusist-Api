@@ -10,7 +10,7 @@ const logger = require("../utils/logger");
 const argon2 = require('argon2');
 const z = require('zod');
 
-// --- 📌 Zod şeması: Kullanıcı profil güncelleme için doğrulama kuralları ---
+// ---  Zod şeması: Kullanıcı profil güncelleme için doğrulama kuralları ---
 const updateUserSchema = z.object({
   name: z.string().min(3, "İsim en az 3 karakter olmalı").optional(),
   lastname: z.string().min(2, "Soyisim en az 2 karakter olmalı").optional(),

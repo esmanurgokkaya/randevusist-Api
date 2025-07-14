@@ -15,11 +15,11 @@ const pool = mysql.createPool({
 
 pool.getConnection()
   .then(conn => {
-    console.log('✅ Veritabanı bağlantısı başarılı');
+    console.log('Veritabanı bağlantısı başarılı');
     conn.release();
   })
   .catch(err => {
-    console.error('❌ Veritabanı bağlantı hatası:', err);
+    console.error('Veritabanı bağlantı hatası:', err);
   });
 
 module.exports = pool;
