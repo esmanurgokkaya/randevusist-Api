@@ -1,3 +1,13 @@
+// docker
+// redis
+// role base api  + rate limit 
+// websocket 
+// mikro servis mimarisi araştır
+// repo design 
+// entegre et 
+
+
+
 const {
   createReservation,
   checkConflict,
