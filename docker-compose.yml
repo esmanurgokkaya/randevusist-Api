@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mysql
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: randevusist
+      DB_PORT: 3306
+      PORT: 3001
+    volumes:
+      - .:/app
+    command: npm start
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: randevusist
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
