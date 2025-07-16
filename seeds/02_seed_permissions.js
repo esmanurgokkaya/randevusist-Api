@@ -1,9 +1,19 @@
-exports.seed = async function(knex) {
+exports.seed = async function (knex) {
   await knex('permissions').del();
   await knex('permissions').insert([
-    { id: 1, name: 'create_room' },
-    { id: 2, name: 'update_room' },
-    { id: 3, name: 'delete_room' },
-    { id: 4, name: 'manage_users' }
+    // Oda işlemleri
+    { name: 'create_room' },
+    { name: 'update_room' },
+    { name: 'delete_room' },
+
+    // Kullanıcı ve yetki
+    { name: 'manage_users' },
+    { name: 'manage_permissions' },
+
+    // Rezervasyon işlemleri
+    { name: 'create_reservation' },
+    { name: 'update_reservation' },
+    { name: 'delete_reservation' },
+    { name: 'view_reservations' }
   ]);
 };

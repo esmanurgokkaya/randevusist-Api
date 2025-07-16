@@ -13,11 +13,11 @@ const { verifyToken,requireRole ,checkPermission } = require('../middleware/auth
 const router = express.Router();
 
 
-router.post('/reservations', verifyToken, checkPermission('create_room'), createReservation);                
+router.post('/reservations', verifyToken, checkPermission('create_reservation'), createReservation);                
 router.get('/reservations/me', verifyToken, getMyReservations);             
 router.get('/reservations/:id', verifyToken, getReservationById);           
-router.put('/reservations/:id', verifyToken, checkPermission('update_room'), updateReservation);            
-router.delete('/reservations/:id', verifyToken, checkPermission('delete_room'), deleteReservation);        
+router.put('/reservations/:id', verifyToken, checkPermission('update_reservation'), updateReservation);            
+router.delete('/reservations/:id', verifyToken, checkPermission('delete_reservation'), deleteReservation);        
 router.get('/reservations', verifyToken, searchReservationsController);     
 
 module.exports = router;
