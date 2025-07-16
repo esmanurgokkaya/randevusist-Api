@@ -75,28 +75,49 @@ const generateRefreshToken = async (user) => {
  *               name:
  *                 type: string
  *                 example: John
+ *                 description: First name, minimum 2 characters
  *               lastname:
  *                 type: string
  *                 example: Doe
+ *                 description: Last name, minimum 2 characters
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john@example.com
  *               phone:
  *                 type: string
  *                 example: "05551234567"
+ *                 description: Phone number, minimum 10 characters
  *               password:
  *                 type: string
  *                 example: "StrongP@ss1"
+ *                 description: Password with at least one uppercase, lowercase, digit and special char (!@#$%^&*)
  *               role_id:
- *                 type: int
+ *                 type: integer
+ *                 example: 3
+ *                 description: Optional user role id, default 3
  *     responses:
  *       201:
  *         description: User successfully registered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User successfully created.
+ *                 userID:
+ *                   type: integer
+ *                   example: 42
  *       400:
- *         description: Invalid input
+ *         description: Invalid input data
  *       409:
  *         description: Email already exists
+ *       500:
+ *         description: Server error
  */
+
 
 const register = async (req, res) => {
 console.log("Gelen İstek:", req.headers);
@@ -153,15 +174,54 @@ console.log(" İstek Body:", req.body);
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john@example.com
  *               password:
  *                 type: string
  *                 example: "StrongP@ss1"
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Login successful, returns access and refresh tokens
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Login successful
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 42
+ *                     name:
+ *                       type: string
+ *                       example: John
+ *                     lastname:
+ *                       type: string
+ *                       example: Doe
+ *                     email:
+ *                       type: string
+ *                       example: john@example.com
+ *                     phone:
+ *                       type: string
+ *                       example: "05551234567"
+ *                     role_id:
+ *                       type: integer
+ *                       example: 3
  *       401:
- *         description: Invalid credentials
+ *         description: Invalid email or password
+ *       500:
+ *         description: Server error
  */
 
 const login = async (req, res) => {
@@ -217,14 +277,25 @@ const login = async (req, res) => {
  *             properties:
  *               token:
  *                 type: string
+ *                 description: Refresh token issued at login
  *     responses:
  *       200:
- *         description: New access and refresh token issued
+ *         description: New access and refresh tokens issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
  *       400:
  *         description: Token not provided
  *       403:
  *         description: Invalid or expired token
  */
+
 
 const refresh = async (req, res) => {
   const { token } = req.body;
@@ -269,6 +340,7 @@ const refresh = async (req, res) => {
  *             properties:
  *               token:
  *                 type: string
+ *                 description: Refresh token to invalidate
  *     responses:
  *       200:
  *         description: Logout successful

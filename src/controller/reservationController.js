@@ -1,8 +1,8 @@
-// docker
+// docker ---
 // redis
-// role base api  + rate limit 
-// websocket 
-// mikro servis mimarisi araştır
+// role base api--  + rate limit 
+// websocket-- 
+// mikro servis mimarisi araştır X
 // repo design 
 // entegre et 
 
