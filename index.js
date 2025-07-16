@@ -13,7 +13,8 @@ const authRoutes = require('./src/routes/authRoute');
 const userRoutes = require('./src/routes/userRoute');
 const reservationRoutes = require('./src/routes/reservationRoute');
 const permissionRoutes = require('./src/routes/permissionRoute');
-
+const roleRouter = require("./src/routes/roleRoute");
+const rolePermissionRouter = require("./src/routes/rolePermissionRoute");
 //  Middleware - Hataları yakalamak için özel auth middleware
 const { handleAuthError } = require('./src/middleware/authMiddleware');
 const swaggerUi = require("swagger-ui-express");
@@ -49,6 +50,8 @@ app.use(cors({
 
 
 //  Route tanımları
+app.use("/roles", roleRouter);
+app.use("/role-permissions", rolePermissionRouter);
 app.use('/auth', authRoutes);           
 app.use('/users', userRoutes);          
 app.use('/reservations', reservationRoutes); 
