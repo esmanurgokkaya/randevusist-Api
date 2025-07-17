@@ -1,6 +1,39 @@
 const { getAllRoles, createRole, updateRoleById, deleteRoleById } = require("../models/roleModel");
 const logger = require("../utils/logger");
 
+/**
+ * @swagger
+ * tags:
+ *   name: Roles
+ *   description: Role management
+ */
+
+/**
+ * @swagger
+ * /roles:
+ *   get:
+ *     summary: Get all roles
+ *     tags: [Roles]
+ *     responses:
+ *       200:
+ *         description: List of roles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 roles:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *       500:
+ *         description: Server error
+ */
 const listRoles = async (req, res) => {
   try {
     const roles = await getAllRoles();
@@ -12,6 +45,30 @@ const listRoles = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /roles:
+ *   post:
+ *     summary: Create a new role
+ *     tags: [Roles]
+ *     requestBody:
+ *       description: Role name
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Role successfully created
+ *       500:
+ *         description: Server error
+ */
 const createRoles = async (req, res) => {
   const { name } = req.body;
   try {
@@ -24,6 +81,39 @@ const createRoles = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /roles/{id}:
+ *   put:
+ *     summary: Update a role by ID
+ *     tags: [Roles]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Role ID
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       description: New role data
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Role successfully updated
+ *       404:
+ *         description: Role not found
+ *       500:
+ *         description: Server error
+ */
 const updateRoles = async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
@@ -40,6 +130,27 @@ const updateRoles = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /roles/{id}:
+ *   delete:
+ *     summary: Delete a role by ID
+ *     tags: [Roles]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Role ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Role successfully deleted
+ *       404:
+ *         description: Role not found
+ *       500:
+ *         description: Server error
+ */
 const deleteRoles = async (req, res) => {
   const { id } = req.params;
   try {
