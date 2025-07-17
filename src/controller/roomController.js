@@ -6,6 +6,50 @@ const {
 } = require("../models/roomModel");
 const logger = require("../utils/logger");
 
+/**
+ * @swagger
+ * tags:
+ *   name: Rooms
+ *   description: Room management
+ */
+
+/**
+ * @swagger
+ * /rooms:
+ *   get:
+ *     summary: Get all rooms with localization support
+ *     tags: [Rooms]
+ *     parameters:
+ *       - in: query
+ *         name: lang
+ *         schema:
+ *           type: string
+ *           enum: [tr, en]
+ *         description: Language for room name and status (default is 'tr')
+ *     responses:
+ *       200:
+ *         description: List of rooms retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 rooms:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       cover:
+ *                         type: string
+ *       500:
+ *         description: Failed to retrieve rooms
+ */
 const listRooms = async (req, res) => {
   const locale = req.query.lang || "tr";
 
@@ -47,6 +91,40 @@ const listRooms = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /rooms:
+ *   post:
+ *     summary: Create a new room
+ *     tags: [Rooms]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cover
+ *               - status
+ *               - translations
+ *             properties:
+ *               cover:
+ *                 type: string
+ *                 example: "https://example.com/image.jpg"
+ *               status:
+ *                 type: string
+ *                 enum: [available, maintenance, closed]
+ *               translations:
+ *                 type: object
+ *                 example:
+ *                   tr: "Oda 101"
+ *                   en: "Room 101"
+ *     responses:
+ *       201:
+ *         description: Room created successfully
+ *       500:
+ *         description: Failed to create room
+ */
 const createRooms = async (req, res) => {
   const { cover, status, translations } = req.body;
   /*
@@ -66,6 +144,49 @@ const createRooms = async (req, res) => {
   }
 };
 
+
+/**
+ * @swagger
+ * /rooms/{id}:
+ *   put:
+ *     summary: Update a room by ID
+ *     tags: [Rooms]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Room ID
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cover
+ *               - status
+ *               - translations
+ *             properties:
+ *               cover:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [available, maintenance, closed]
+ *               translations:
+ *                 type: object
+ *                 example:
+ *                   tr: "Oda 102"
+ *                   en: "Room 102"
+ *     responses:
+ *       200:
+ *         description: Room updated successfully
+ *       404:
+ *         description: Room not found
+ *       500:
+ *         description: Failed to update room
+ */
 const updateRooms = async (req, res) => {
   const { id } = req.params;
   const { cover, status, translations } = req.body;
@@ -83,6 +204,27 @@ const updateRooms = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /rooms/{id}:
+ *   delete:
+ *     summary: Delete a room by ID
+ *     tags: [Rooms]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Room ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Room deleted successfully
+ *       404:
+ *         description: Room not found
+ *       500:
+ *         description: Failed to delete room
+ */
 const deleteRooms = async (req, res) => {
   const { id } = req.params;
   try {
