@@ -6,7 +6,46 @@ const {
 } = require("../models/rolePermissionModel");
 const logger = require("../utils/logger");
 
-// Rolün tüm yetkilerini getir
+/**
+ * @swagger
+ * tags:
+ *   name: RolePermissions
+ *   description: Role and permission relationships
+ */
+
+/**
+ * @swagger
+ * /role-permissions/{roleId}:
+ *   get:
+ *     summary: Get all permissions assigned to a role
+ *     tags: [RolePermissions]
+ *     parameters:
+ *       - in: path
+ *         name: roleId
+ *         required: true
+ *         description: Role ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Permissions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 permissions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *       500:
+ *         description: Server error
+ */
 const listPermissionsByRole = async (req, res) => {
   const { roleId } = req.params;
   try {
@@ -19,7 +58,33 @@ const listPermissionsByRole = async (req, res) => {
   }
 };
 
-// Role yetki ekle
+/**
+ * @swagger
+ * /role-permissions:
+ *   post:
+ *     summary: Assign a permission to a role
+ *     tags: [RolePermissions]
+ *     requestBody:
+ *       description: Role and permission IDs
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - roleId
+ *               - permissionId
+ *             properties:
+ *               roleId:
+ *                 type: integer
+ *               permissionId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Permission assigned to role
+ *       500:
+ *         description: Server error
+ */
 const addPermission = async (req, res) => {
   const { roleId, permissionId } = req.body;
   try {
@@ -32,7 +97,33 @@ const addPermission = async (req, res) => {
   }
 };
 
-// Role yetki kaldır
+/**
+ * @swagger
+ * /role-permissions:
+ *   delete:
+ *     summary: Remove a permission from a role
+ *     tags: [RolePermissions]
+ *     requestBody:
+ *       description: Role and permission IDs to remove
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - roleId
+ *               - permissionId
+ *             properties:
+ *               roleId:
+ *                 type: integer
+ *               permissionId:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Permission removed from role
+ *       500:
+ *         description: Server error
+ */
 const removePermission = async (req, res) => {
   const { roleId, permissionId } = req.body;
   try {
