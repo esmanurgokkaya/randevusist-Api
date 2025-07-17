@@ -1,5 +1,12 @@
 const db = require('../config/db');
 
+/**
+ * @desc Yeni bir refresh token'ı veritabanına kaydeder
+ * @param {number} user_id - Token'a sahip kullanıcı ID'si
+ * @param {string} token - Refresh token değeri
+ * @param {Date} expires_at - Token'ın geçerlilik süresi
+ * @returns {Promise<Object>} - Ekleme işleminin sonucu
+ */
 async function saveRefreshToken(user_id, token, expires_at) {
   const conn = await db.getConnection();
   try {
@@ -11,6 +18,11 @@ async function saveRefreshToken(user_id, token, expires_at) {
   }
 }
 
+/**
+ * @desc Veritabanında belirtilen token'ı arar
+ * @param {string} token - Aranacak refresh token
+ * @returns {Promise<Object|null>} - Token bulunduysa obje, yoksa null
+ */
 async function findRefreshToken(token) {
   const conn = await db.getConnection();
   try {
@@ -22,6 +34,11 @@ async function findRefreshToken(token) {
   }
 }
 
+/**
+ * @desc Belirtilen refresh token'ı veritabanından siler
+ * @param {string} token - Silinecek token
+ * @returns {Promise<Object>} - Silme işleminin sonucu
+ */
 async function deleteRefreshToken(token) {
   const conn = await db.getConnection();
   try {
