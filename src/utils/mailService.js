@@ -1,20 +1,24 @@
 // Nodemailer ile e-posta gönderimi yapılır
 const nodemailer = require('nodemailer');
 
-//  .env üzerinden mail kullanıcı bilgileri alınır
+// .env üzerinden mail kullanıcı bilgileri alınır
 const { MAIL_USER, MAIL_PASS } = process.env;
 
-//  Ortam değişkenleri eksikse uyarı verir
+/**
+ * MAIL_USER veya MAIL_PASS ortam değişkenleri eksikse uyarı verir
+ */
 if (!MAIL_USER || !MAIL_PASS) {
-  console.warn(" MAIL_USER veya MAIL_PASS .env dosyasında tanımlı değil!");
+  console.warn("MAIL_USER veya MAIL_PASS .env dosyasında tanımlı değil!");
 }
 
-//  Mail sunucusu yapılandırması (Gmail servisi ile)
+/**
+ * Mail sunucusu yapılandırması (Gmail servisi ile)
+ */
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: MAIL_USER,
-    pass: MAIL_PASS, //  Gmail uygulama şifresi kullanılmalı
+    pass: MAIL_PASS, // Gmail uygulama şifresi kullanılmalı
   },
 });
 
@@ -36,9 +40,9 @@ const sendMail = async (to, subject, htmlContent) => {
 
     // Mail gönderme işlemi
     const info = await transporter.sendMail(mailOptions);
-    console.log(` Mail gönderildi → ${to} | Mesaj ID: ${info.messageId}`);
+    console.log(`Mail gönderildi → ${to} | Mesaj ID: ${info.messageId}`);
   } catch (error) {
-    console.error(" Mail gönderimi başarısız:");
+    console.error("Mail gönderimi başarısız:");
     console.error("Hata Mesajı:", error.message);
     if (error.response) {
       console.error("SMTP Yanıtı:", error.response);
