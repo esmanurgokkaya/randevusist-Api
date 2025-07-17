@@ -7,13 +7,25 @@ const {
 } = require("../controller/rolePermissionController");
 const { verifyToken, checkPermission } = require("../middleware/authMiddleware");
 
-// /api/role-permissions/:roleId → Belirli role ait izinleri getir
+/**
+ * @route GET /api/role-permissions/:roleId
+ * @desc Belirli bir role ait tüm izinleri getirir
+ * @access Protected (manage_roles izni gerekli)
+ */
 router.get("/:roleId", verifyToken, checkPermission("manage_roles"), listPermissionsByRole);
 
-// /api/role-permissions → Role izin ekle
+/**
+ * @route POST /api/role-permissions
+ * @desc Role yeni bir izin ekler
+ * @access Protected (manage_roles izni gerekli)
+ */
 router.post("/", verifyToken, checkPermission("manage_roles"), addPermission);
 
-// /api/role-permissions → Role izni kaldır
+/**
+ * @route DELETE /api/role-permissions
+ * @desc Role ait bir izni kaldırır
+ * @access Protected (manage_roles izni gerekli)
+ */
 router.delete("/", verifyToken, checkPermission("manage_roles"), removePermission);
 
 module.exports = router;
